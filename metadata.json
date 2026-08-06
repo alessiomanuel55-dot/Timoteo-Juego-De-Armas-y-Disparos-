@@ -1,0 +1,6 @@
+{
+  "name": "Timoteo Juego de Armas y Disparos",
+  "description": "Juego táctil arcade de disparos donde el gatito negro Timoteo defiende su territorio destruyendo cajas de madera en caída libre.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
