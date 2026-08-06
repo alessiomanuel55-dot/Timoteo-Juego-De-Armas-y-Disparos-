@@ -1094,7 +1094,7 @@ private fun DrawScope.drawGroundLine(catY: Float, width: Float) {
     )
 }
 
-// Draw Timoteo Black Cat (Supports Nano Banana Bitmap Skin, HD Cat Skin, and Vectorial Skin)
+// Draw Timoteo Black Cat using PNG skin sprite image
 private fun DrawScope.drawTimoteo(
     catX: Float,
     catY: Float,
@@ -1110,36 +1110,35 @@ private fun DrawScope.drawTimoteo(
     val bobY = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 6f else 0f
     val drawCatY = catY + bobY
 
-    // Render Bitmap-based Skins (Nano Banana / HD Cat)
+    // Determine active PNG skin bitmap
     val activeBitmap = when (selectedSkin) {
-        TimoteoSkin.NANO_BANANA -> nanoBananaBitmap
-        TimoteoSkin.HD_CAT -> hdCatBitmap
-        else -> null
+        TimoteoSkin.HD_CAT -> hdCatBitmap ?: nanoBananaBitmap
+        else -> nanoBananaBitmap ?: hdCatBitmap
     }
 
+    // Floor shadow underneath Timoteo
+    drawOval(
+        color = Color.Black.copy(alpha = 0.40f),
+        topLeft = Offset(catX - 55f, catY + 35f),
+        size = Size(110f, 20f)
+    )
+
+    val pivotX = catX
+    val pivotY = drawCatY - 15f
+
+    // Laser Aim Guide Line
+    drawLine(
+        color = YellowLaser.copy(alpha = 0.45f),
+        start = Offset(pivotX, pivotY),
+        end = Offset(pivotX + cos(gunAngleRad) * 1200f, pivotY + sin(gunAngleRad) * 1200f),
+        strokeWidth = 3.5f,
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 16f), 0f)
+    )
+
     if (activeBitmap != null) {
-        // Floor shadow underneath Timoteo
-        drawOval(
-            color = Color.Black.copy(alpha = 0.40f),
-            topLeft = Offset(catX - 50f, catY + 30f),
-            size = Size(100f, 18f)
-        )
-
-        val pivotX = catX
-        val pivotY = drawCatY - 15f
-
-        // Laser Aim Guide Line
-        drawLine(
-            color = YellowLaser.copy(alpha = 0.45f),
-            start = Offset(pivotX, pivotY),
-            end = Offset(pivotX + cos(gunAngleRad) * 1200f, pivotY + sin(gunAngleRad) * 1200f),
-            strokeWidth = 3.5f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 16f), 0f)
-        )
-
-        // Draw character sprite bitmap centered at (catX, drawCatY)
-        val spriteWidth = 145
-        val spriteHeight = 145
+        // Draw character sprite PNG bitmap centered at (catX, drawCatY)
+        val spriteWidth = 150
+        val spriteHeight = 150
         val spriteTopLeft = IntOffset((catX - spriteWidth / 2f).toInt(), (drawCatY - spriteHeight / 2f - 20f).toInt())
         val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f)
 
@@ -1150,288 +1149,30 @@ private fun DrawScope.drawTimoteo(
                 dstSize = IntSize(spriteWidth, spriteHeight)
             )
         }
-
-        // Muzzle Recoil Glow Effect on shot
-        if (recoilOffset > 1f) {
-            val muzzleX = pivotX + cos(gunAngleRad) * 75f
-            val muzzleY = pivotY + sin(gunAngleRad) * 75f
-            drawCircle(
-                color = YellowLaser.copy(alpha = 0.8f),
-                center = Offset(muzzleX, muzzleY),
-                radius = 16f
-            )
-            drawCircle(
-                color = Color.White,
-                center = Offset(muzzleX, muzzleY),
-                radius = 8f
-            )
-        }
-        return
-    }
-
-    // Tail Sway angle
-    val tailSway = sin((if (isWalking) walkAnimPhase * 1.8f else (System.currentTimeMillis() % 2000 / 2000f * 2 * Math.PI)).toDouble()).toFloat() * 18f
-
-    // 1. Cute Swaying Fluffy Black Tail (behind body)
-    val tailPath = Path().apply {
-        moveTo(catX - 25f, drawCatY + 25f)
-        cubicTo(
-            catX - 50f + tailSway, drawCatY + 15f,
-            catX - 60f + tailSway * 1.2f, drawCatY - 15f,
-            catX - 45f + tailSway * 1.5f, drawCatY - 35f
-        )
-    }
-    drawPath(
-        path = tailPath,
-        color = Color.Black,
-        style = Stroke(width = 16f, cap = StrokeCap.Round)
-    )
-    // White fluffy tail tip
-    drawCircle(
-        color = Color.White,
-        center = Offset(catX - 45f + tailSway * 1.5f, drawCatY - 35f),
-        radius = 8f
-    )
-
-    // 2. Cute Paws with Pink Toe Beans under body
-    val pawStepL = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 12f else 0f
-    val pawStepR = if (isWalking) -sin(walkAnimPhase.toDouble()).toFloat() * 12f else 0f
-
-    // Back Paws
-    drawCircle(color = Color.Black, center = Offset(catX - 28f + pawStepL, drawCatY + 34f), radius = 11f)
-    drawCircle(color = Color.Black, center = Offset(catX + 28f + pawStepR, drawCatY + 34f), radius = 11f)
-
-    // Pink Toe Bean Accents
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(catX - 28f + pawStepL, drawCatY + 37f), radius = 4f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(catX + 28f + pawStepR, drawCatY + 37f), radius = 4f)
-
-    // 3. Cute Kitten Body
-    drawCircle(
-        color = Color.Black,
-        center = Offset(catX, drawCatY + 14f),
-        radius = 42f
-    )
-    // White Kitty Chest Patch
-    drawOval(
-        color = Color.White,
-        topLeft = Offset(catX - 16f, drawCatY + 2f),
-        size = Size(32f, 26f)
-    )
-
-    // 4. Cat Head (Round Black Kitten Head)
-    drawCircle(
-        color = Color.Black,
-        center = Offset(catX, drawCatY - 30f),
-        radius = 48f
-    )
-
-    // Soft Cheeks Fur Fluff
-    val leftCheekFluff = Path().apply {
-        moveTo(catX - 44f, drawCatY - 20f)
-        lineTo(catX - 56f, drawCatY - 18f)
-        lineTo(catX - 42f, drawCatY - 10f)
-        close()
-    }
-    drawPath(leftCheekFluff, color = Color.Black)
-
-    val rightCheekFluff = Path().apply {
-        moveTo(catX + 44f, drawCatY - 20f)
-        lineTo(catX + 56f, drawCatY - 18f)
-        lineTo(catX + 42f, drawCatY - 10f)
-        close()
-    }
-    drawPath(rightCheekFluff, color = Color.Black)
-
-    // Head Fur Highlight Rim
-    drawCircle(
-        color = Color(0xFF2E3248),
-        center = Offset(catX, drawCatY - 30f),
-        radius = 48f,
-        style = Stroke(width = 2.5f)
-    )
-
-    // 5. Pointed Ears with Pink Inner Lining
-    val leftEarPath = Path().apply {
-        moveTo(catX - 44f, drawCatY - 42f)
-        lineTo(catX - 26f, drawCatY - 92f)
-        lineTo(catX - 6f, drawCatY - 62f)
-        close()
-    }
-    drawPath(leftEarPath, color = Color.Black)
-
-    val leftInnerEar = Path().apply {
-        moveTo(catX - 39f, drawCatY - 45f)
-        lineTo(catX - 26f, drawCatY - 84f)
-        lineTo(catX - 12f, drawCatY - 60f)
-        close()
-    }
-    drawPath(leftInnerEar, color = Color(0xFFFF80AB))
-
-    val rightEarPath = Path().apply {
-        moveTo(catX + 6f, drawCatY - 62f)
-        lineTo(catX + 26f, drawCatY - 92f)
-        lineTo(catX + 44f, drawCatY - 42f)
-        close()
-    }
-    drawPath(rightEarPath, color = Color.Black)
-
-    val rightInnerEar = Path().apply {
-        moveTo(catX + 12f, drawCatY - 60f)
-        lineTo(catX + 26f, drawCatY - 84f)
-        lineTo(catX + 39f, drawCatY - 45f)
-        close()
-    }
-    drawPath(rightInnerEar, color = Color(0xFFFF80AB))
-
-    // 6. Shiny Expression Eyes & Eye Tracking
-    val eyeTrackX = cos(gunAngleRad) * 4f
-    val eyeTrackY = sin(gunAngleRad) * 3f
-
-    // Left Eye
-    drawOval(
-        color = YellowLaser,
-        topLeft = Offset(catX - 30f + eyeTrackX, drawCatY - 44f + eyeTrackY),
-        size = Size(20f, 24f)
-    )
-    // Left Pupil
-    drawOval(
-        color = Color.Black,
-        topLeft = Offset(catX - 23f + eyeTrackX, drawCatY - 42f + eyeTrackY),
-        size = Size(8f, 20f)
-    )
-    // Left Eye Sparkle Reflection
-    drawCircle(
-        color = Color.White,
-        center = Offset(catX - 26f + eyeTrackX, drawCatY - 40f + eyeTrackY),
-        radius = 3.5f
-    )
-
-    // Right Eye
-    drawOval(
-        color = YellowLaser,
-        topLeft = Offset(catX + 10f + eyeTrackX, drawCatY - 44f + eyeTrackY),
-        size = Size(20f, 24f)
-    )
-    // Right Pupil
-    drawOval(
-        color = Color.Black,
-        topLeft = Offset(catX + 15f + eyeTrackX, drawCatY - 42f + eyeTrackY),
-        size = Size(8f, 20f)
-    )
-    // Right Eye Sparkle Reflection
-    drawCircle(
-        color = Color.White,
-        center = Offset(catX + 12f + eyeTrackX, drawCatY - 40f + eyeTrackY),
-        radius = 3.5f
-    )
-
-    // 7. Cute Pink Blush Cheeks
-    drawCircle(
-        color = Color(0xFFFF4081).copy(alpha = 0.35f),
-        center = Offset(catX - 32f, drawCatY - 18f),
-        radius = 8f
-    )
-    drawCircle(
-        color = Color(0xFFFF4081).copy(alpha = 0.35f),
-        center = Offset(catX + 32f, drawCatY - 18f),
-        radius = 8f
-    )
-
-    // 8. Cute Nose & :3 Cat Mouth
-    val nosePath = Path().apply {
-        moveTo(catX - 4f, drawCatY - 20f)
-        lineTo(catX + 4f, drawCatY - 20f)
-        lineTo(catX, drawCatY - 15f)
-        close()
-    }
-    drawPath(nosePath, color = Color(0xFFFF80AB))
-
-    // :3 Mouth line
-    val mouthPath = Path().apply {
-        moveTo(catX - 8f, drawCatY - 11f)
-        quadraticTo(catX - 4f, drawCatY - 7f, catX, drawCatY - 11f)
-        quadraticTo(catX + 4f, drawCatY - 7f, catX + 8f, drawCatY - 11f)
-    }
-    drawPath(mouthPath, color = Color.White, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
-
-    // Whiskers
-    drawLine(Color.White.copy(alpha = 0.9f), Offset(catX - 10f, drawCatY - 15f), Offset(catX - 44f, drawCatY - 22f), strokeWidth = 2f)
-    drawLine(Color.White.copy(alpha = 0.9f), Offset(catX - 10f, drawCatY - 11f), Offset(catX - 42f, drawCatY - 10f), strokeWidth = 2f)
-
-    drawLine(Color.White.copy(alpha = 0.9f), Offset(catX + 10f, drawCatY - 15f), Offset(catX + 44f, drawCatY - 22f), strokeWidth = 2f)
-    drawLine(Color.White.copy(alpha = 0.9f), Offset(catX + 10f, drawCatY - 11f), Offset(catX + 42f, drawCatY - 10f), strokeWidth = 2f)
-
-    // 9. Futuristic Sci-Fi Blaster Gun held in Timoteo's Paws
-    val pivotX = catX
-    val pivotY = drawCatY - 40f
-    val angleDeg = Math.toDegrees(gunAngleRad.toDouble()).toFloat()
-
-    rotate(degrees = angleDeg, pivot = Offset(pivotX, pivotY)) {
-        val drawGunX = pivotX - recoilOffset
-
-        // Laser Aim Guide Line
-        drawLine(
-            color = YellowLaser.copy(alpha = 0.30f),
-            start = Offset(drawGunX + 75f, pivotY),
-            end = Offset(drawGunX + 1200f, pivotY),
-            strokeWidth = 2.5f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 16f), 0f)
-        )
-
-        // Gun Rear Stock / Battery Unit
-        drawRoundRect(
-            color = Color(0xFF37474F),
-            topLeft = Offset(drawGunX + 2f, pivotY - 8f),
-            size = Size(20f, 16f),
-            cornerRadius = CornerRadius(3f)
-        )
-
-        // Main Blaster Body
-        drawRoundRect(
-            color = Color(0xFF1C2430),
-            topLeft = Offset(drawGunX + 22f, pivotY - 14f),
-            size = Size(46f, 28f),
-            cornerRadius = CornerRadius(5f)
-        )
-
-        // Sci-Fi Glowing Energy Core Cell
-        drawRoundRect(
-            color = NeonCyan,
-            topLeft = Offset(drawGunX + 32f, pivotY - 6f),
-            size = Size(18f, 12f),
-            cornerRadius = CornerRadius(3f)
-        )
-
-        // Laser Barrel
-        drawRoundRect(
-            color = Color(0xFF78909C),
-            topLeft = Offset(drawGunX + 68f, pivotY - 9f),
-            size = Size(24f, 18f),
-            cornerRadius = CornerRadius(4f)
-        )
-
-        // Barrel Tip Muzzle Ring
+    } else {
+        // Simple fallback circle if bitmap is loading
         drawCircle(
-            color = YellowLaser,
-            center = Offset(drawGunX + 90f, pivotY),
-            radius = 5f
-        )
-
-        // Laser Sight Lens
-        drawCircle(
-            color = LaserOrange,
-            center = Offset(drawGunX + 48f, pivotY - 14f),
-            radius = 4f
+            color = Color.Black,
+            center = Offset(catX, drawCatY),
+            radius = 45f
         )
     }
 
-    // Front Paws holding the blaster gun
-    val frontPawL = Offset(catX - 12f, drawCatY + 10f)
-    val frontPawR = Offset(catX + 12f, drawCatY + 10f)
-    drawCircle(color = Color.Black, center = frontPawL, radius = 9f)
-    drawCircle(color = Color.Black, center = frontPawR, radius = 9f)
-    drawCircle(color = Color(0xFFFF80AB), center = frontPawL, radius = 3.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = frontPawR, radius = 3.5f)
+    // Muzzle Recoil Glow Effect on shot
+    if (recoilOffset > 1f) {
+        val muzzleX = pivotX + cos(gunAngleRad) * 80f
+        val muzzleY = pivotY + sin(gunAngleRad) * 80f
+        drawCircle(
+            color = YellowLaser.copy(alpha = 0.85f),
+            center = Offset(muzzleX, muzzleY),
+            radius = 18f
+        )
+        drawCircle(
+            color = Color.White,
+            center = Offset(muzzleX, muzzleY),
+            radius = 9f
+        )
+    }
 }
 
 // Draw Falling Wood / Colored Crate
