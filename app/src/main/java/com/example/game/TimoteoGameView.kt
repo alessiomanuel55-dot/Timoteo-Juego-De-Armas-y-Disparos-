@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.drawscope.clipPath
 import com.example.R
 import com.example.ui.theme.DarkGameBg
 import com.example.ui.theme.DarkGameCard
@@ -1135,19 +1136,61 @@ private fun DrawScope.drawTimoteo(
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 16f), 0f)
     )
 
+    // Animated Kitten Paws stepping (left & right legs with pink toe beans)
+    val legAnimPhase = if (isWalking) walkAnimPhase * 1.6f else ((System.currentTimeMillis() % 1600) / 1600f * 2 * Math.PI).toFloat()
+    val pawStepL_X = sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 18f else 4f)
+    val pawStepL_Y = kotlin.math.abs(cos(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 10f else 3f)
+
+    val pawStepR_X = -sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 18f else 4f)
+    val pawStepR_Y = kotlin.math.abs(sin(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 10f else 3f)
+
+    val pawY = drawCatY + 38f
+
+    // Draw Animated Left Paw (Black Paw + Pink Toe Beans)
+    val leftPawCenter = Offset(catX - 26f + pawStepL_X, pawY - pawStepL_Y)
+    drawCircle(color = Color.Black, center = leftPawCenter, radius = 13f)
+    drawCircle(color = Color(0xFF2E3248), center = leftPawCenter, radius = 13f, style = Stroke(width = 2f))
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y + 2f), radius = 5.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x - 5f, leftPawCenter.y - 6f), radius = 2.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y - 7.5f), radius = 2.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x + 5f, leftPawCenter.y - 6f), radius = 2.5f)
+
+    // Draw Animated Right Paw (Black Paw + Pink Toe Beans)
+    val rightPawCenter = Offset(catX + 26f + pawStepR_X, pawY - pawStepR_Y)
+    drawCircle(color = Color.Black, center = rightPawCenter, radius = 13f)
+    drawCircle(color = Color(0xFF2E3248), center = rightPawCenter, radius = 13f, style = Stroke(width = 2f))
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y + 2f), radius = 5.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x - 5f, rightPawCenter.y - 6f), radius = 2.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y - 7.5f), radius = 2.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x + 5f, rightPawCenter.y - 6f), radius = 2.5f)
+
     if (activeBitmap != null) {
         // Draw character sprite PNG bitmap centered at (catX, drawCatY)
         val spriteWidth = 150
         val spriteHeight = 150
         val spriteTopLeft = IntOffset((catX - spriteWidth / 2f).toInt(), (drawCatY - spriteHeight / 2f - 20f).toInt())
-        val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f)
+        val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 7f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 2.5f
+        val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f) + walkWaddle
+
+        val clipBounds = Path().apply {
+            addOval(
+                androidx.compose.ui.geometry.Rect(
+                    left = catX - spriteWidth / 2f + 12f,
+                    top = drawCatY - spriteHeight / 2f - 12f,
+                    right = catX + spriteWidth / 2f - 12f,
+                    bottom = drawCatY + spriteHeight / 2f - 25f
+                )
+            )
+        }
 
         rotate(degrees = tiltAngle, pivot = Offset(catX, drawCatY)) {
-            drawImage(
-                image = activeBitmap,
-                dstOffset = spriteTopLeft,
-                dstSize = IntSize(spriteWidth, spriteHeight)
-            )
+            clipPath(clipBounds) {
+                drawImage(
+                    image = activeBitmap,
+                    dstOffset = spriteTopLeft,
+                    dstSize = IntSize(spriteWidth, spriteHeight)
+                )
+            }
         }
     } else {
         // Simple fallback circle if bitmap is loading
