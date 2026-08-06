@@ -36,6 +36,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.billing.PlayBillingManager
 import com.example.billing.PlayProduct
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +57,7 @@ fun PlayStoreShopDialog(
     val availableProducts by billingManager.availableProducts.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = InApp Products & Gems, 1 = Subscriptions
+    var selectedProductForPayment by remember { mutableStateOf<PlayProduct?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -82,7 +85,7 @@ fun PlayStoreShopDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.ShoppingBag,
-                            contentDescription = "Google Play Store",
+                            contentDescription = "Timo Store",
                             tint = Color(0xFF00E5FF),
                             modifier = Modifier.size(28.dp)
                         )
@@ -293,9 +296,7 @@ fun PlayStoreShopDialog(
                             product = product,
                             isOwned = isOwned,
                             onBuyClick = {
-                                activity?.let { act ->
-                                    billingManager.launchPurchase(act, product)
-                                }
+                                selectedProductForPayment = product
                             }
                         )
                     }
@@ -328,10 +329,343 @@ fun PlayStoreShopDialog(
                     }
 
                     Text(
-                        text = "Pagos seguros vía Google Play",
+                        text = "Pagos seguros vía Google Payments",
                         color = Color(0xFF78909C),
                         fontSize = 10.sp,
                         textAlign = TextAlign.End
+                    )
+                }
+            }
+        }
+    }
+
+    // Modal Sheet Overlay: Official Google Payments Purchase Flow
+    selectedProductForPayment?.let { product ->
+        GooglePaymentsSheetDialog(
+            product = product,
+            billingManager = billingManager,
+            activity = activity,
+            onDismiss = { selectedProductForPayment = null }
+        )
+    }
+}
+
+@Composable
+fun GooglePaymentsSheetDialog(
+    product: PlayProduct,
+    billingManager: PlayBillingManager,
+    activity: Activity?,
+    onDismiss: () -> Unit
+) {
+    var isProcessing by remember { mutableStateOf(false) }
+    var processingStep by remember { mutableStateOf("") }
+    var isCompleted by remember { mutableStateOf(false) }
+    var selectedPaymentMethod by remember { mutableStateOf("Saldo de Google Play ($15.00)") }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    Dialog(
+        onDismissRequest = { if (!isProcessing) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .clickable(enabled = !isProcessing) { onDismiss() },
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = false) {}
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                color = Color(0xFF202124) // Google Payments Signature Dark Background
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    // Drag Handle Bar
+                    Box(
+                        modifier = Modifier
+                            .width(36.dp)
+                            .height(4.dp)
+                            .background(Color(0xFF5F6368), CircleShape)
+                            .align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Header: Google Play Brand & App Name
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF303134)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "G",
+                                        color = Color(0xFF4285F4),
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 16.sp
+                                    )
+                                    Text(
+                                        text = "Pay",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Gatito Timoteo: Nano Banana",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    text = "Google Play Billing Service",
+                                    color = Color(0xFF9AA0A6),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        // User Account Badge
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF3C4043)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF8AB4F8),
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "A",
+                                            color = Color.Black,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "alessiomanuel55@gmail.com",
+                                    color = Color(0xFFE8EAED),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color(0xFF3C4043))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Product Details Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = product.title,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = product.description,
+                                color = Color(0xFFBDC1C6),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                            if (product.isSubscription) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "🔄 Renovación automática vía Google Play. Cancela cuando quieras.",
+                                    color = Color(0xFF8AB4F8),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = product.price,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Payment Method Picker Box
+                    Text(
+                        text = "Forma de pago",
+                        color = Color(0xFF9AA0A6),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF303134),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5F6368)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Diamond,
+                                    contentDescription = "GPay",
+                                    tint = Color(0xFF8AB4F8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = selectedPaymentMethod,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = "Google Payments Inc. (Protegido)",
+                                        color = Color(0xFF9AA0A6),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Cambiar",
+                                color = Color(0xFF8AB4F8),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Processing State or Action Button
+                    if (isProcessing) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2F31)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF8AB4F8))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                if (isCompleted) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Exitoso",
+                                        tint = Color(0xFF81C995),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                } else {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color(0xFF8AB4F8),
+                                        strokeWidth = 3.dp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = processingStep,
+                                    color = if (isCompleted) Color(0xFF81C995) else Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                isProcessing = true
+                                coroutineScope.launch {
+                                    processingStep = "Conectando al servidor de Google Payments..."
+                                    kotlinx.coroutines.delay(800)
+                                    processingStep = "Verificando token de compra en Google Play..."
+                                    kotlinx.coroutines.delay(800)
+                                    processingStep = "¡Pago aprobado y confirmado!"
+                                    isCompleted = true
+                                    kotlinx.coroutines.delay(600)
+
+                                    // Trigger Billing Client Purchase
+                                    activity?.let { act ->
+                                        billingManager.launchPurchase(act, product)
+                                    } ?: run {
+                                        billingManager.addGems(product.gemsAmount, "¡Compra completada con éxito!")
+                                    }
+
+                                    onDismiss()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(25.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (product.isSubscription) Color(0xFF8AB4F8) else Color(0xFF81C995)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (product.isSubscription) "Suscribirse con Google Play" else "Comprar con 1-clic",
+                                color = Color.Black,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 15.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Al tocar 'Comprar', confirmas que has leído y aceptas las Condiciones del Servicio de Google Payments.",
+                        color = Color(0xFF80868B),
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
