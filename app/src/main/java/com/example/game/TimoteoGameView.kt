@@ -793,7 +793,7 @@ fun TimoteoGameView(
             // Timoteo Avatar & Score & Skin Pill Badge
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(12.dp),
                     color = DarkGameCard,
                     border = androidx.compose.foundation.BorderStroke(2.dp, YellowLaser),
                     shadowElevation = 6.dp,
@@ -1339,30 +1339,12 @@ private fun DrawScope.drawTimoteo(
         val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 8f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 3f
         val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f) + walkWaddle
 
-        val clipBounds = Path().apply {
-            addOval(
-                androidx.compose.ui.geometry.Rect(
-                    left = catX - spriteWidth / 2f + 22f,
-                    top = drawCatY - spriteHeight / 2f - 12f,
-                    right = catX + spriteWidth / 2f - 22f,
-                    bottom = drawCatY + spriteHeight / 2f - 38f
-                )
-            )
-        }
-
-        val catColorFilter = if (isWhiteVip) {
-            ColorFilter.tint(Color(0xFFFAFAFA), BlendMode.SrcAtop)
-        } else null
-
         rotate(degrees = tiltAngle, pivot = Offset(catX, drawCatY)) {
-            clipPath(clipBounds) {
-                drawImage(
-                    image = activeBitmap,
-                    dstOffset = spriteTopLeft,
-                    dstSize = IntSize(spriteWidth, spriteHeight),
-                    colorFilter = catColorFilter
-                )
-            }
+            drawImage(
+                image = activeBitmap,
+                dstOffset = spriteTopLeft,
+                dstSize = IntSize(spriteWidth, spriteHeight)
+            )
 
             if (isWhiteVip) {
                 // Golden VIP Brooch Badge on chest
@@ -1376,90 +1358,16 @@ private fun DrawScope.drawTimoteo(
     } else {
         // Simple fallback circle if bitmap is loading
         drawCircle(
-            color = if (isWhiteVip) Color.White else Color.Black,
+            color = Color.Black,
             center = Offset(catX, drawCatY),
             radius = 65f
         )
     }
 
-    // Blaster gun held in Timoteo's paws pointing at target
-    val gunPivotX = catX
-    val gunPivotY = drawCatY - 12f
-    val gunAngleDeg = Math.toDegrees(gunAngleRad.toDouble()).toFloat()
-
-    rotate(degrees = gunAngleDeg, pivot = Offset(gunPivotX, gunPivotY)) {
-        val drawGunX = gunPivotX - recoilOffset
-
-        if (isWhiteVip) {
-            // Electric Metallic Gun Body
-            drawRoundRect(
-                color = Color(0xFF37474F),
-                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
-                size = Size(75f, 24f),
-                cornerRadius = CornerRadius(6f)
-            )
-            drawRoundRect(
-                color = Color(0xFF00E5FF),
-                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
-                size = Size(75f, 24f),
-                cornerRadius = CornerRadius(6f),
-                style = Stroke(width = 2.5f)
-            )
-
-            // Electric Glowing Coils
-            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 45f, gunPivotY), radius = 9f)
-            drawCircle(color = Color.White, center = Offset(drawGunX + 45f, gunPivotY), radius = 4f)
-
-            // Muzzle Barrel
-            drawRoundRect(
-                color = Color(0xFF263238),
-                topLeft = Offset(drawGunX + 85f, gunPivotY - 8f),
-                size = Size(20f, 16f),
-                cornerRadius = CornerRadius(4f)
-            )
-            // Electric Tip
-            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 105f, gunPivotY), radius = 8f)
-            drawCircle(color = Color.White, center = Offset(drawGunX + 105f, gunPivotY), radius = 4f)
-        } else {
-            // Nano Banana Curved Yellow Gun Body
-            val bananaGunPath = Path().apply {
-                moveTo(drawGunX + 15f, gunPivotY - 8f)
-                cubicTo(
-                    drawGunX + 35f, gunPivotY - 24f,
-                    drawGunX + 65f, gunPivotY - 22f,
-                    drawGunX + 85f, gunPivotY - 5f
-                )
-                lineTo(drawGunX + 88f, gunPivotY + 5f)
-                cubicTo(
-                    drawGunX + 65f, gunPivotY + 20f,
-                    drawGunX + 35f, gunPivotY + 18f,
-                    drawGunX + 15f, gunPivotY + 8f
-                )
-                close()
-            }
-            drawPath(bananaGunPath, color = Color(0xFFFFD54F))
-            drawPath(bananaGunPath, color = Color(0xFFFFF176), style = Stroke(width = 3.5f))
-
-            // Sci-Fi Cyan Power Core Ring
-            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 50f, gunPivotY), radius = 8f)
-            drawCircle(color = Color.White, center = Offset(drawGunX + 50f, gunPivotY), radius = 4f)
-
-            // Muzzle Barrel
-            drawRoundRect(
-                color = Color(0xFF37474F),
-                topLeft = Offset(drawGunX + 82f, gunPivotY - 8f),
-                size = Size(22f, 16f),
-                cornerRadius = CornerRadius(4f)
-            )
-            // Muzzle Laser Tip Glow
-            drawCircle(color = Color(0xFFFFEB3B), center = Offset(drawGunX + 104f, gunPivotY), radius = 7f)
-        }
-    }
-
-    // Muzzle Recoil Glow Effect on shot
+    // Muzzle Recoil Glow Effect on shot (without gun obstructing cat face)
     if (recoilOffset > 1f) {
-        val muzzleX = pivotX + cos(gunAngleRad) * 80f
-        val muzzleY = pivotY + sin(gunAngleRad) * 80f
+        val muzzleX = catX + cos(gunAngleRad) * 75f
+        val muzzleY = (drawCatY - 12f) + sin(gunAngleRad) * 75f
         drawCircle(
             color = YellowLaser.copy(alpha = 0.85f),
             center = Offset(muzzleX, muzzleY),
