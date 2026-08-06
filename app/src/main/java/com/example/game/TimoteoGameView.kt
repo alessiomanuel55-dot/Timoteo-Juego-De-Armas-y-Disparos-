@@ -62,8 +62,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -113,6 +115,7 @@ enum class TimoteoSkin(
     val iconRes: Int
 ) {
     NANO_BANANA("nano_banana", "Nano Banana 🍌", "NANO BANANA 🍌", "Gatito Negro Tierno con Blaster Nano Banana", R.drawable.ic_timoteo_nanobanana),
+    WHITE_VIP_CAT("white_vip_cat", "Gatito Blanco VIP 🐱⚡", "VIP NANO BANANA 👑", "Skin Nano Banana: Gatito blanco con capa, broche dorado VIP y Blaster Eléctrico en Cadena", R.drawable.ic_timoteo_cat),
     HD_CAT("hd_cat", "Gato Negro HD 🐱", "GATO NEGRO HD 🐱", "Gatito Negro Full Body Ultra HD", R.drawable.ic_timoteo_cat),
     VECTORIAL("vectorial", "Vectorial 🎨", "VECTORIAL 🎨", "Diseño Vectorial Procedural", R.drawable.ic_timoteo_nanobanana)
 }
@@ -227,6 +230,7 @@ fun TimoteoGameView(
         val bulletSpeed = 32f
 
         val isTripleShotActive = powerUps.any { it.type == PowerUpType.TRIPLE_SHOT }
+        val bulletColor = if (selectedSkin == TimoteoSkin.WHITE_VIP_CAT) Color(0xFF00E5FF) else YellowLaser
 
         if (isTripleShotActive) {
             val angles = listOf(angle - 0.20f, angle, angle + 0.20f)
@@ -238,7 +242,7 @@ fun TimoteoGameView(
                         y = (catY - 50f) + sin(a) * gunLength,
                         vx = cos(a) * bulletSpeed,
                         vy = sin(a) * bulletSpeed,
-                        color = YellowLaser,
+                        color = bulletColor,
                         isPowerShot = true
                     )
                 )
@@ -251,8 +255,8 @@ fun TimoteoGameView(
                     y = muzzleY,
                     vx = cos(angle) * bulletSpeed,
                     vy = sin(angle) * bulletSpeed,
-                    color = YellowLaser,
-                    isPowerShot = false
+                    color = bulletColor,
+                    isPowerShot = (selectedSkin == TimoteoSkin.WHITE_VIP_CAT)
                 )
             )
         }
@@ -521,6 +525,54 @@ fun TimoteoGameView(
                                     soundManager.playComboSound(comboCount)
                                 }
 
+                                // WHITE_VIP_CAT: Blaster Eléctrico en Cadena que destruye 3 cajas
+                                if (selectedSkin == TimoteoSkin.WHITE_VIP_CAT) {
+                                    val chainTargets = crates.filter { it.id != crate.id }
+                                        .sortedBy { c ->
+                                            val dx = (c.x + c.width / 2) - (crate.x + crate.width / 2)
+                                            val dy = (c.y + c.height / 2) - (crate.y + crate.height / 2)
+                                            dx * dx + dy * dy
+                                        }
+                                        .take(2)
+
+                                    for (target in chainTargets) {
+                                        target.hp = 0
+                                        val startX = crate.x + crate.width / 2
+                                        val startY = crate.y + crate.height / 2
+                                        val endX = target.x + target.width / 2
+                                        val endY = target.y + target.height / 2
+
+                                        for (step in 0..12) {
+                                            val t = step / 12f
+                                            val px = startX + (endX - startX) * t + (Random.nextFloat() - 0.5f) * 25f
+                                            val py = startY + (endY - startY) * t + (Random.nextFloat() - 0.5f) * 25f
+                                            particles.add(
+                                                Particle(
+                                                    x = px,
+                                                    y = py,
+                                                    vx = (Random.nextFloat() - 0.5f) * 12f,
+                                                    vy = (Random.nextFloat() - 0.5f) * 12f,
+                                                    radius = Random.nextFloat() * 7f + 3f,
+                                                    color = Color(0xFF00E5FF),
+                                                    life = 1f,
+                                                    maxLife = 1f,
+                                                    type = ParticleType.SPARK
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    floatingTexts.add(
+                                        FloatingText(
+                                            id = nextEntityId++,
+                                            text = "⚡ CADENA NANO BANANA VIP (3 CAJAS) ⚡",
+                                            x = crate.x + crate.width / 2,
+                                            y = crate.y - 30f,
+                                            color = Color(0xFF00E5FF)
+                                        )
+                                    )
+                                }
+
                                 val pointsEarned = crate.type.points * (1 + comboCount / 5)
                                 score += pointsEarned
 
@@ -749,7 +801,8 @@ fun TimoteoGameView(
                         .size(46.dp)
                         .clickable {
                             selectedSkin = when (selectedSkin) {
-                                TimoteoSkin.NANO_BANANA -> TimoteoSkin.HD_CAT
+                                TimoteoSkin.NANO_BANANA -> TimoteoSkin.WHITE_VIP_CAT
+                                TimoteoSkin.WHITE_VIP_CAT -> TimoteoSkin.HD_CAT
                                 TimoteoSkin.HD_CAT -> TimoteoSkin.VECTORIAL
                                 TimoteoSkin.VECTORIAL -> TimoteoSkin.NANO_BANANA
                             }
@@ -790,7 +843,8 @@ fun TimoteoGameView(
                         border = androidx.compose.foundation.BorderStroke(1.dp, YellowLaser),
                         modifier = Modifier.clickable {
                             selectedSkin = when (selectedSkin) {
-                                TimoteoSkin.NANO_BANANA -> TimoteoSkin.HD_CAT
+                                TimoteoSkin.NANO_BANANA -> TimoteoSkin.WHITE_VIP_CAT
+                                TimoteoSkin.WHITE_VIP_CAT -> TimoteoSkin.HD_CAT
                                 TimoteoSkin.HD_CAT -> TimoteoSkin.VECTORIAL
                                 TimoteoSkin.VECTORIAL -> TimoteoSkin.NANO_BANANA
                             }
@@ -1199,6 +1253,8 @@ private fun DrawScope.drawTimoteo(
     val bobY = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 6f else 0f
     val drawCatY = catY + bobY
 
+    val isWhiteVip = selectedSkin == TimoteoSkin.WHITE_VIP_CAT
+
     // Determine active PNG skin bitmap
     val activeBitmap = when (selectedSkin) {
         TimoteoSkin.HD_CAT -> hdCatBitmap ?: nanoBananaBitmap
@@ -1215,7 +1271,7 @@ private fun DrawScope.drawTimoteo(
     val pivotX = catX
     val pivotY = drawCatY - 15f
 
-    // 0. Heroic Golden Cape waving in the wind behind Timoteo
+    // 0. Heroic Golden/Scarlet Cape waving in the wind behind Timoteo
     val capeWave = sin((if (isWalking) walkAnimPhase * 2.2f else (System.currentTimeMillis() % 1400 / 1400f * 2 * Math.PI)).toDouble()).toFloat() * 22f
     val capePath = Path().apply {
         moveTo(catX - 25f, drawCatY - 20f)
@@ -1232,8 +1288,13 @@ private fun DrawScope.drawTimoteo(
         )
         close()
     }
+    val capeColors = if (isWhiteVip) {
+        listOf(Color(0xFFD50000), Color(0xFFFF1744), Color(0xFFFFD700))
+    } else {
+        listOf(Color(0xFFFFD700), Color(0xFFFFB300), Color(0xFFFF8F00))
+    }
     val goldBrush = Brush.radialGradient(
-        colors = listOf(Color(0xFFFFD700), Color(0xFFFFB300), Color(0xFFFF8F00)),
+        colors = capeColors,
         center = Offset(catX - 35f, drawCatY + 20f),
         radius = 120f
     )
@@ -1249,20 +1310,22 @@ private fun DrawScope.drawTimoteo(
     val pawStepR_Y = kotlin.math.abs(sin(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 14f else 4f)
 
     val pawY = drawCatY + 50f
+    val pawBodyColor = if (isWhiteVip) Color.White else Color.Black
+    val pawBorderColor = if (isWhiteVip) Color(0xFFCFD8DC) else Color(0xFF2E3248)
 
-    // Draw Animated Left Paw (Black Paw + Pink Toe Beans)
+    // Draw Animated Left Paw
     val leftPawCenter = Offset(catX - 38f + pawStepL_X, pawY - pawStepL_Y)
-    drawCircle(color = Color.Black, center = leftPawCenter, radius = 18f)
-    drawCircle(color = Color(0xFF2E3248), center = leftPawCenter, radius = 18f, style = Stroke(width = 2.5f))
+    drawCircle(color = pawBodyColor, center = leftPawCenter, radius = 18f)
+    drawCircle(color = pawBorderColor, center = leftPawCenter, radius = 18f, style = Stroke(width = 2.5f))
     drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y + 3f), radius = 7.5f)
     drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x - 7f, leftPawCenter.y - 8f), radius = 3.5f)
     drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y - 10f), radius = 3.5f)
     drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x + 7f, leftPawCenter.y - 8f), radius = 3.5f)
 
-    // Draw Animated Right Paw (Black Paw + Pink Toe Beans)
+    // Draw Animated Right Paw
     val rightPawCenter = Offset(catX + 38f + pawStepR_X, pawY - pawStepR_Y)
-    drawCircle(color = Color.Black, center = rightPawCenter, radius = 18f)
-    drawCircle(color = Color(0xFF2E3248), center = rightPawCenter, radius = 18f, style = Stroke(width = 2.5f))
+    drawCircle(color = pawBodyColor, center = rightPawCenter, radius = 18f)
+    drawCircle(color = pawBorderColor, center = rightPawCenter, radius = 18f, style = Stroke(width = 2.5f))
     drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y + 3f), radius = 7.5f)
     drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x - 7f, rightPawCenter.y - 8f), radius = 3.5f)
     drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y - 10f), radius = 3.5f)
@@ -1287,25 +1350,39 @@ private fun DrawScope.drawTimoteo(
             )
         }
 
+        val catColorFilter = if (isWhiteVip) {
+            ColorFilter.tint(Color(0xFFFAFAFA), BlendMode.SrcAtop)
+        } else null
+
         rotate(degrees = tiltAngle, pivot = Offset(catX, drawCatY)) {
             clipPath(clipBounds) {
                 drawImage(
                     image = activeBitmap,
                     dstOffset = spriteTopLeft,
-                    dstSize = IntSize(spriteWidth, spriteHeight)
+                    dstSize = IntSize(spriteWidth, spriteHeight),
+                    colorFilter = catColorFilter
                 )
+            }
+
+            if (isWhiteVip) {
+                // Golden VIP Brooch Badge on chest
+                val broochCenter = Offset(catX, drawCatY + 12f)
+                drawCircle(color = Color(0xFFFFD700), center = broochCenter, radius = 14f)
+                drawCircle(color = Color(0xFFFF8F00), center = broochCenter, radius = 14f, style = Stroke(width = 3f))
+                drawCircle(color = Color(0xFFFFF59D), center = broochCenter, radius = 9f)
+                drawCircle(color = Color(0xFFFFD700), center = broochCenter, radius = 6f)
             }
         }
     } else {
         // Simple fallback circle if bitmap is loading
         drawCircle(
-            color = Color.Black,
+            color = if (isWhiteVip) Color.White else Color.Black,
             center = Offset(catX, drawCatY),
             radius = 65f
         )
     }
 
-    // Futuristic Nano Banana Laser Blaster gun held in Timoteo's paws pointing at target
+    // Blaster gun held in Timoteo's paws pointing at target
     val gunPivotX = catX
     val gunPivotY = drawCatY - 12f
     val gunAngleDeg = Math.toDegrees(gunAngleRad.toDouble()).toFloat()
@@ -1313,38 +1390,70 @@ private fun DrawScope.drawTimoteo(
     rotate(degrees = gunAngleDeg, pivot = Offset(gunPivotX, gunPivotY)) {
         val drawGunX = gunPivotX - recoilOffset
 
-        // Nano Banana Curved Yellow Gun Body
-        val bananaGunPath = Path().apply {
-            moveTo(drawGunX + 15f, gunPivotY - 8f)
-            cubicTo(
-                drawGunX + 35f, gunPivotY - 24f,
-                drawGunX + 65f, gunPivotY - 22f,
-                drawGunX + 85f, gunPivotY - 5f
+        if (isWhiteVip) {
+            // Electric Metallic Gun Body
+            drawRoundRect(
+                color = Color(0xFF37474F),
+                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
+                size = Size(75f, 24f),
+                cornerRadius = CornerRadius(6f)
             )
-            lineTo(drawGunX + 88f, gunPivotY + 5f)
-            cubicTo(
-                drawGunX + 65f, gunPivotY + 20f,
-                drawGunX + 35f, gunPivotY + 18f,
-                drawGunX + 15f, gunPivotY + 8f
+            drawRoundRect(
+                color = Color(0xFF00E5FF),
+                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
+                size = Size(75f, 24f),
+                cornerRadius = CornerRadius(6f),
+                style = Stroke(width = 2.5f)
             )
-            close()
+
+            // Electric Glowing Coils
+            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 45f, gunPivotY), radius = 9f)
+            drawCircle(color = Color.White, center = Offset(drawGunX + 45f, gunPivotY), radius = 4f)
+
+            // Muzzle Barrel
+            drawRoundRect(
+                color = Color(0xFF263238),
+                topLeft = Offset(drawGunX + 85f, gunPivotY - 8f),
+                size = Size(20f, 16f),
+                cornerRadius = CornerRadius(4f)
+            )
+            // Electric Tip
+            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 105f, gunPivotY), radius = 8f)
+            drawCircle(color = Color.White, center = Offset(drawGunX + 105f, gunPivotY), radius = 4f)
+        } else {
+            // Nano Banana Curved Yellow Gun Body
+            val bananaGunPath = Path().apply {
+                moveTo(drawGunX + 15f, gunPivotY - 8f)
+                cubicTo(
+                    drawGunX + 35f, gunPivotY - 24f,
+                    drawGunX + 65f, gunPivotY - 22f,
+                    drawGunX + 85f, gunPivotY - 5f
+                )
+                lineTo(drawGunX + 88f, gunPivotY + 5f)
+                cubicTo(
+                    drawGunX + 65f, gunPivotY + 20f,
+                    drawGunX + 35f, gunPivotY + 18f,
+                    drawGunX + 15f, gunPivotY + 8f
+                )
+                close()
+            }
+            drawPath(bananaGunPath, color = Color(0xFFFFD54F))
+            drawPath(bananaGunPath, color = Color(0xFFFFF176), style = Stroke(width = 3.5f))
+
+            // Sci-Fi Cyan Power Core Ring
+            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 50f, gunPivotY), radius = 8f)
+            drawCircle(color = Color.White, center = Offset(drawGunX + 50f, gunPivotY), radius = 4f)
+
+            // Muzzle Barrel
+            drawRoundRect(
+                color = Color(0xFF37474F),
+                topLeft = Offset(drawGunX + 82f, gunPivotY - 8f),
+                size = Size(22f, 16f),
+                cornerRadius = CornerRadius(4f)
+            )
+            // Muzzle Laser Tip Glow
+            drawCircle(color = Color(0xFFFFEB3B), center = Offset(drawGunX + 104f, gunPivotY), radius = 7f)
         }
-        drawPath(bananaGunPath, color = Color(0xFFFFD54F))
-        drawPath(bananaGunPath, color = Color(0xFFFFF176), style = Stroke(width = 3.5f))
-
-        // Sci-Fi Cyan Power Core Ring
-        drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 50f, gunPivotY), radius = 8f)
-        drawCircle(color = Color.White, center = Offset(drawGunX + 50f, gunPivotY), radius = 4f)
-
-        // Muzzle Barrel
-        drawRoundRect(
-            color = Color(0xFF37474F),
-            topLeft = Offset(drawGunX + 82f, gunPivotY - 8f),
-            size = Size(22f, 16f),
-            cornerRadius = CornerRadius(4f)
-        )
-        // Muzzle Laser Tip Glow
-        drawCircle(color = Color(0xFFFFEB3B), center = Offset(drawGunX + 104f, gunPivotY), radius = 7f)
     }
 
     // Muzzle Recoil Glow Effect on shot

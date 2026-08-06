@@ -43,6 +43,9 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
     private val _hasGoldenSkin = MutableStateFlow(prefs.getBoolean("skin_golden_unlocked", false))
     val hasGoldenSkin: StateFlow<Boolean> = _hasGoldenSkin.asStateFlow()
 
+    private val _hasWhiteVipSkin = MutableStateFlow(prefs.getBoolean("skin_white_vip_unlocked", false))
+    val hasWhiteVipSkin: StateFlow<Boolean> = _hasWhiteVipSkin.asStateFlow()
+
     private val _hasNoAds = MutableStateFlow(prefs.getBoolean("no_ads_unlocked", false))
     val hasNoAds: StateFlow<Boolean> = _hasNoAds.asStateFlow()
 
@@ -65,6 +68,7 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
         const val SKU_GEMS_100 = "inapp_gems_100"
         const val SKU_GEMS_500 = "inapp_gems_500"
         const val SKU_GOLDEN_SKIN = "inapp_skin_golden_laser"
+        const val SKU_WHITE_VIP_SKIN = "inapp_skin_white_vip_cat"
         const val SKU_NO_ADS = "inapp_no_ads"
 
         const val SUB_VIP_MONTHLY = "sub_timoteo_vip_monthly"
@@ -101,6 +105,14 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
                 price = "$1.99 USD",
                 isSubscription = false,
                 skinUnlock = TimoteoSkin.NANO_BANANA
+            ),
+            PlayProduct(
+                id = SKU_WHITE_VIP_SKIN,
+                title = "Gatito Blanco VIP 🐱⚡ (Nano Banana)",
+                description = "Gatito blanco con capa, broche dorado VIP y Blaster Eléctrico que destruye 3 cajas en cadena",
+                price = "$2.49 USD",
+                isSubscription = false,
+                skinUnlock = TimoteoSkin.WHITE_VIP_CAT
             ),
             PlayProduct(
                 id = SKU_NO_ADS,
@@ -152,6 +164,7 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
             QueryProductDetailsParams.Product.newBuilder().setProductId(SKU_GEMS_100).setProductType(BillingClient.ProductType.INAPP).build(),
             QueryProductDetailsParams.Product.newBuilder().setProductId(SKU_GEMS_500).setProductType(BillingClient.ProductType.INAPP).build(),
             QueryProductDetailsParams.Product.newBuilder().setProductId(SKU_GOLDEN_SKIN).setProductType(BillingClient.ProductType.INAPP).build(),
+            QueryProductDetailsParams.Product.newBuilder().setProductId(SKU_WHITE_VIP_SKIN).setProductType(BillingClient.ProductType.INAPP).build(),
             QueryProductDetailsParams.Product.newBuilder().setProductId(SKU_NO_ADS).setProductType(BillingClient.ProductType.INAPP).build()
         )
 
@@ -291,6 +304,11 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
                 _hasGoldenSkin.value = true
                 prefs.edit().putBoolean("skin_golden_unlocked", true).apply()
                 _statusMessage.value = "¡Skin Láser Dorado Desbloqueada!"
+            }
+            SKU_WHITE_VIP_SKIN -> {
+                _hasWhiteVipSkin.value = true
+                prefs.edit().putBoolean("skin_white_vip_unlocked", true).apply()
+                _statusMessage.value = "¡Skin Gatito Blanco VIP Nano Banana Desbloqueada!"
             }
             SKU_NO_ADS -> {
                 _hasNoAds.value = true

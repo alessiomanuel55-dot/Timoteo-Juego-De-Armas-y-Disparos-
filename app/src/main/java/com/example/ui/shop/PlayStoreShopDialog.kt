@@ -14,6 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -360,7 +365,12 @@ fun GooglePaymentsSheetDialog(
     var isProcessing by remember { mutableStateOf(false) }
     var processingStep by remember { mutableStateOf("") }
     var isCompleted by remember { mutableStateOf(false) }
-    var selectedPaymentMethod by remember { mutableStateOf("Saldo de Google Play ($15.00)") }
+    var selectedPaymentMethod by remember { mutableStateOf("Tarjeta de crédito en Google Payments") }
+
+    var cardNumber by remember { mutableStateOf("4532 8921 7712 9043") }
+    var expiryDate by remember { mutableStateOf("08/28") }
+    var cvvCode by remember { mutableStateOf("842") }
+    var cardError by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -521,7 +531,7 @@ fun GooglePaymentsSheetDialog(
 
                     // Payment Method Picker Box
                     Text(
-                        text = "Forma de pago",
+                        text = "Método de pago de Google Payments",
                         color = Color(0xFF9AA0A6),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
@@ -542,8 +552,8 @@ fun GooglePaymentsSheetDialog(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.Diamond,
-                                    contentDescription = "GPay",
+                                    imageVector = Icons.Default.CreditCard,
+                                    contentDescription = "GPay Card",
                                     tint = Color(0xFF8AB4F8),
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -556,7 +566,7 @@ fun GooglePaymentsSheetDialog(
                                         fontSize = 13.sp
                                     )
                                     Text(
-                                        text = "Google Payments Inc. (Protegido)",
+                                        text = "Google Payments Inc. (Protegido 256-bit)",
                                         color = Color(0xFF9AA0A6),
                                         fontSize = 10.sp
                                     )
@@ -571,7 +581,95 @@ fun GooglePaymentsSheetDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Credit Card Form Fields
+                    Text(
+                        text = "Datos de la tarjeta de crédito",
+                        color = Color(0xFF8AB4F8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    OutlinedTextField(
+                        value = cardNumber,
+                        onValueChange = { cardNumber = it },
+                        label = { Text("Número de tarjeta", color = Color(0xFFBDC1C6), fontSize = 11.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color(0xFF8AB4F8))
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFF303134),
+                            unfocusedContainerColor = Color(0xFF303134),
+                            focusedBorderColor = Color(0xFF8AB4F8),
+                            unfocusedBorderColor = Color(0xFF5F6368),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = expiryDate,
+                            onValueChange = { expiryDate = it },
+                            label = { Text("Vencimiento (MM/AA)", color = Color(0xFFBDC1C6), fontSize = 11.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Default.DateRange, contentDescription = null, tint = Color(0xFF8AB4F8))
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF303134),
+                                unfocusedContainerColor = Color(0xFF303134),
+                                focusedBorderColor = Color(0xFF8AB4F8),
+                                unfocusedBorderColor = Color(0xFF5F6368),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedTextField(
+                            value = cvvCode,
+                            onValueChange = { cvvCode = it },
+                            label = { Text("Código CVV", color = Color(0xFFBDC1C6), fontSize = 11.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF8AB4F8))
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF303134),
+                                unfocusedContainerColor = Color(0xFF303134),
+                                focusedBorderColor = Color(0xFF8AB4F8),
+                                unfocusedBorderColor = Color(0xFF5F6368),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (cardError != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = cardError!!,
+                            color = Color(0xFFF28B82),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Processing State or Action Button
                     if (isProcessing) {
@@ -614,13 +712,18 @@ fun GooglePaymentsSheetDialog(
                     } else {
                         Button(
                             onClick = {
+                                if (cardNumber.isBlank() || expiryDate.isBlank() || cvvCode.isBlank()) {
+                                    cardError = "Por favor ingresa un número de tarjeta, vencimiento y CVV válidos"
+                                    return@Button
+                                }
+                                cardError = null
                                 isProcessing = true
                                 coroutineScope.launch {
                                     processingStep = "Conectando al servidor de Google Payments..."
                                     kotlinx.coroutines.delay(800)
-                                    processingStep = "Verificando token de compra en Google Play..."
+                                    processingStep = "Validando tarjeta de crédito y CVV en Google Payments..."
                                     kotlinx.coroutines.delay(800)
-                                    processingStep = "¡Pago aprobado y confirmado!"
+                                    processingStep = "¡Pago aprobado y confirmado por Google Payments!"
                                     isCompleted = true
                                     kotlinx.coroutines.delay(600)
 
