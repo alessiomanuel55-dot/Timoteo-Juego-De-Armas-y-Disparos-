@@ -28,8 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.runtime.collectAsState
+import com.example.billing.PlayBillingManager
+import com.example.ui.shop.PlayStoreShopDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -120,6 +126,13 @@ fun TimoteoGameView(
     var highScore by remember { mutableIntStateOf(prefs.getInt("high_score", 0)) }
 
     val soundManager = remember { SoundManager() }
+
+    // Google Play Billing Manager & Store Dialog
+    val billingManager = remember { PlayBillingManager(context) }
+    var showShopDialog by remember { mutableStateOf(false) }
+    val gemsCount by billingManager.gems.collectAsState()
+    val isVipMonthly by billingManager.isVipMonthly.collectAsState()
+    val isUltraYearly by billingManager.isUltraYearly.collectAsState()
 
     // Skins Bitmaps
     val nanoBananaBitmap = ImageBitmap.imageResource(id = R.drawable.ic_timoteo_nanobanana)
@@ -814,8 +827,50 @@ fun TimoteoGameView(
                 }
             }
 
-            // Action Buttons (Pause & Audio)
-            Row {
+            // Action Buttons (Play Store, Pause & Audio)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Google Play Store & VIP Subscription Capsule Button
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF1E2838),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        if (isVipMonthly || isUltraYearly) Color(0xFFFFD700) else Color(0xFF00E5FF)
+                    ),
+                    shadowElevation = 6.dp,
+                    modifier = Modifier.clickable { showShopDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingBag,
+                            contentDescription = "Timo Store",
+                            tint = if (isVipMonthly || isUltraYearly) Color(0xFFFFD700) else Color(0xFF00E5FF),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "💎 $gemsCount",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isVipMonthly || isUltraYearly) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "VIP",
+                                color = Color(0xFFFFD700),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 IconButton(
                     onClick = { isMuted = !isMuted },
                     modifier = Modifier
@@ -1052,8 +1107,41 @@ fun TimoteoGameView(
                             fontWeight = FontWeight.Black
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = { showShopDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2838)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingBag,
+                            contentDescription = "Timo Store",
+                            tint = Color(0xFF00E5FF)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "TIMO STORE & VIP 🛒",
+                            color = Color(0xFF00E5FF),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
+        }
+
+        // Render Google Play Store Shop & Subscription Dialog
+        if (showShopDialog) {
+            PlayStoreShopDialog(
+                billingManager = billingManager,
+                onDismiss = { showShopDialog = false }
+            )
         }
     }
 }
