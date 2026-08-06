@@ -1175,10 +1175,10 @@ private fun DrawScope.drawTimoteo(
         val clipBounds = Path().apply {
             addOval(
                 androidx.compose.ui.geometry.Rect(
-                    left = catX - spriteWidth / 2f + 12f,
-                    top = drawCatY - spriteHeight / 2f - 12f,
-                    right = catX + spriteWidth / 2f - 12f,
-                    bottom = drawCatY + spriteHeight / 2f - 25f
+                    left = catX - spriteWidth / 2f + 16f,
+                    top = drawCatY - spriteHeight / 2f - 10f,
+                    right = catX + spriteWidth / 2f - 16f,
+                    bottom = drawCatY + spriteHeight / 2f - 28f
                 )
             )
         }
