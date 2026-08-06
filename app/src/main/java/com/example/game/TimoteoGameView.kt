@@ -302,8 +302,8 @@ fun TimoteoGameView(
                 if (nowMs - lastCrateSpawnTime > spawnInterval) {
                     lastCrateSpawnTime = nowMs
 
-                    val crateWidth = 110f
-                    val crateHeight = 110f
+                    val crateWidth = 145f
+                    val crateHeight = 145f
                     val spawnX = Random.nextFloat() * (screenWidth - crateWidth - 80f) + 40f
 
                     // Determine crate type based on score
@@ -1120,65 +1120,81 @@ private fun DrawScope.drawTimoteo(
     // Floor shadow underneath Timoteo
     drawOval(
         color = Color.Black.copy(alpha = 0.40f),
-        topLeft = Offset(catX - 55f, catY + 35f),
-        size = Size(110f, 20f)
+        topLeft = Offset(catX - 80f, catY + 45f),
+        size = Size(160f, 28f)
     )
 
     val pivotX = catX
     val pivotY = drawCatY - 15f
 
-    // Laser Aim Guide Line
-    drawLine(
-        color = YellowLaser.copy(alpha = 0.45f),
-        start = Offset(pivotX, pivotY),
-        end = Offset(pivotX + cos(gunAngleRad) * 1200f, pivotY + sin(gunAngleRad) * 1200f),
-        strokeWidth = 3.5f,
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 16f), 0f)
+    // 0. Heroic Golden Cape waving in the wind behind Timoteo
+    val capeWave = sin((if (isWalking) walkAnimPhase * 2.2f else (System.currentTimeMillis() % 1400 / 1400f * 2 * Math.PI)).toDouble()).toFloat() * 22f
+    val capePath = Path().apply {
+        moveTo(catX - 25f, drawCatY - 20f)
+        cubicTo(
+            catX - 65f + capeWave, drawCatY + 15f,
+            catX - 85f + capeWave * 1.3f, drawCatY + 55f,
+            catX - 68f + capeWave * 1.5f, drawCatY + 80f
+        )
+        lineTo(catX + 18f, drawCatY + 65f)
+        cubicTo(
+            catX + 4f, drawCatY + 35f,
+            catX - 12f, drawCatY,
+            catX + 25f, drawCatY - 20f
+        )
+        close()
+    }
+    val goldBrush = Brush.radialGradient(
+        colors = listOf(Color(0xFFFFD700), Color(0xFFFFB300), Color(0xFFFF8F00)),
+        center = Offset(catX - 35f, drawCatY + 20f),
+        radius = 120f
     )
+    drawPath(path = capePath, brush = goldBrush)
+    drawPath(path = capePath, color = Color(0xFFFFF59D), style = Stroke(width = 4f))
 
     // Animated Kitten Paws stepping (left & right legs with pink toe beans)
     val legAnimPhase = if (isWalking) walkAnimPhase * 1.6f else ((System.currentTimeMillis() % 1600) / 1600f * 2 * Math.PI).toFloat()
-    val pawStepL_X = sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 18f else 4f)
-    val pawStepL_Y = kotlin.math.abs(cos(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 10f else 3f)
+    val pawStepL_X = sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 24f else 5f)
+    val pawStepL_Y = kotlin.math.abs(cos(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 14f else 4f)
 
-    val pawStepR_X = -sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 18f else 4f)
-    val pawStepR_Y = kotlin.math.abs(sin(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 10f else 3f)
+    val pawStepR_X = -sin(legAnimPhase.toDouble()).toFloat() * (if (isWalking) 24f else 5f)
+    val pawStepR_Y = kotlin.math.abs(sin(legAnimPhase.toDouble()).toFloat()) * (if (isWalking) 14f else 4f)
 
-    val pawY = drawCatY + 38f
+    val pawY = drawCatY + 50f
 
     // Draw Animated Left Paw (Black Paw + Pink Toe Beans)
-    val leftPawCenter = Offset(catX - 26f + pawStepL_X, pawY - pawStepL_Y)
-    drawCircle(color = Color.Black, center = leftPawCenter, radius = 13f)
-    drawCircle(color = Color(0xFF2E3248), center = leftPawCenter, radius = 13f, style = Stroke(width = 2f))
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y + 2f), radius = 5.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x - 5f, leftPawCenter.y - 6f), radius = 2.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y - 7.5f), radius = 2.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x + 5f, leftPawCenter.y - 6f), radius = 2.5f)
+    val leftPawCenter = Offset(catX - 38f + pawStepL_X, pawY - pawStepL_Y)
+    drawCircle(color = Color.Black, center = leftPawCenter, radius = 18f)
+    drawCircle(color = Color(0xFF2E3248), center = leftPawCenter, radius = 18f, style = Stroke(width = 2.5f))
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y + 3f), radius = 7.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x - 7f, leftPawCenter.y - 8f), radius = 3.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x, leftPawCenter.y - 10f), radius = 3.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(leftPawCenter.x + 7f, leftPawCenter.y - 8f), radius = 3.5f)
 
     // Draw Animated Right Paw (Black Paw + Pink Toe Beans)
-    val rightPawCenter = Offset(catX + 26f + pawStepR_X, pawY - pawStepR_Y)
-    drawCircle(color = Color.Black, center = rightPawCenter, radius = 13f)
-    drawCircle(color = Color(0xFF2E3248), center = rightPawCenter, radius = 13f, style = Stroke(width = 2f))
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y + 2f), radius = 5.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x - 5f, rightPawCenter.y - 6f), radius = 2.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y - 7.5f), radius = 2.5f)
-    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x + 5f, rightPawCenter.y - 6f), radius = 2.5f)
+    val rightPawCenter = Offset(catX + 38f + pawStepR_X, pawY - pawStepR_Y)
+    drawCircle(color = Color.Black, center = rightPawCenter, radius = 18f)
+    drawCircle(color = Color(0xFF2E3248), center = rightPawCenter, radius = 18f, style = Stroke(width = 2.5f))
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y + 3f), radius = 7.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x - 7f, rightPawCenter.y - 8f), radius = 3.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x, rightPawCenter.y - 10f), radius = 3.5f)
+    drawCircle(color = Color(0xFFFF80AB), center = Offset(rightPawCenter.x + 7f, rightPawCenter.y - 8f), radius = 3.5f)
 
     if (activeBitmap != null) {
         // Draw character sprite PNG bitmap centered at (catX, drawCatY)
-        val spriteWidth = 150
-        val spriteHeight = 150
-        val spriteTopLeft = IntOffset((catX - spriteWidth / 2f).toInt(), (drawCatY - spriteHeight / 2f - 20f).toInt())
-        val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 7f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 2.5f
+        val spriteWidth = 220
+        val spriteHeight = 220
+        val spriteTopLeft = IntOffset((catX - spriteWidth / 2f).toInt(), (drawCatY - spriteHeight / 2f - 25f).toInt())
+        val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 8f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 3f
         val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f) + walkWaddle
 
         val clipBounds = Path().apply {
             addOval(
                 androidx.compose.ui.geometry.Rect(
-                    left = catX - spriteWidth / 2f + 16f,
-                    top = drawCatY - spriteHeight / 2f - 10f,
-                    right = catX + spriteWidth / 2f - 16f,
-                    bottom = drawCatY + spriteHeight / 2f - 28f
+                    left = catX - spriteWidth / 2f + 22f,
+                    top = drawCatY - spriteHeight / 2f - 12f,
+                    right = catX + spriteWidth / 2f - 22f,
+                    bottom = drawCatY + spriteHeight / 2f - 38f
                 )
             )
         }
@@ -1197,8 +1213,50 @@ private fun DrawScope.drawTimoteo(
         drawCircle(
             color = Color.Black,
             center = Offset(catX, drawCatY),
-            radius = 45f
+            radius = 65f
         )
+    }
+
+    // Futuristic Nano Banana Laser Blaster gun held in Timoteo's paws pointing at target
+    val gunPivotX = catX
+    val gunPivotY = drawCatY - 12f
+    val gunAngleDeg = Math.toDegrees(gunAngleRad.toDouble()).toFloat()
+
+    rotate(degrees = gunAngleDeg, pivot = Offset(gunPivotX, gunPivotY)) {
+        val drawGunX = gunPivotX - recoilOffset
+
+        // Nano Banana Curved Yellow Gun Body
+        val bananaGunPath = Path().apply {
+            moveTo(drawGunX + 15f, gunPivotY - 8f)
+            cubicTo(
+                drawGunX + 35f, gunPivotY - 24f,
+                drawGunX + 65f, gunPivotY - 22f,
+                drawGunX + 85f, gunPivotY - 5f
+            )
+            lineTo(drawGunX + 88f, gunPivotY + 5f)
+            cubicTo(
+                drawGunX + 65f, gunPivotY + 20f,
+                drawGunX + 35f, gunPivotY + 18f,
+                drawGunX + 15f, gunPivotY + 8f
+            )
+            close()
+        }
+        drawPath(bananaGunPath, color = Color(0xFFFFD54F))
+        drawPath(bananaGunPath, color = Color(0xFFFFF176), style = Stroke(width = 3.5f))
+
+        // Sci-Fi Cyan Power Core Ring
+        drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 50f, gunPivotY), radius = 8f)
+        drawCircle(color = Color.White, center = Offset(drawGunX + 50f, gunPivotY), radius = 4f)
+
+        // Muzzle Barrel
+        drawRoundRect(
+            color = Color(0xFF37474F),
+            topLeft = Offset(drawGunX + 82f, gunPivotY - 8f),
+            size = Size(22f, 16f),
+            cornerRadius = CornerRadius(4f)
+        )
+        // Muzzle Laser Tip Glow
+        drawCircle(color = Color(0xFFFFEB3B), center = Offset(drawGunX + 104f, gunPivotY), radius = 7f)
     }
 
     // Muzzle Recoil Glow Effect on shot
