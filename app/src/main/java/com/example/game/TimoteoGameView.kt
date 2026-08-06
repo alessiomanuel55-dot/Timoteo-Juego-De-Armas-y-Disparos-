@@ -91,6 +91,9 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.drawscope.clipPath
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asImageBitmap
 import com.example.R
 import com.example.ui.theme.DarkGameBg
 import com.example.ui.theme.DarkGameCard
@@ -121,6 +124,101 @@ enum class TimoteoSkin(
 }
 
 @Composable
+fun rememberTransparentBitmap(resId: Int): ImageBitmap {
+    val context = LocalContext.current
+    return remember(resId) {
+        val options = BitmapFactory.Options().apply { inMutable = true }
+        val original = BitmapFactory.decodeResource(context.resources, resId, options)
+            ?: return@remember ImageBitmap(1, 1)
+
+        val width = original.width
+        val height = original.height
+        val pixels = IntArray(width * height)
+        original.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        val visited = BooleanArray(width * height)
+        val queue = java.util.ArrayDeque<Int>()
+
+        fun isWhiteBackground(color: Int): Boolean {
+            val r = (color shr 16) and 0xFF
+            val g = (color shr 8) and 0xFF
+            val b = color and 0xFF
+            return r > 200 && g > 200 && b > 200
+        }
+
+        for (x in 0 until width) {
+            val topIdx = x
+            if (!visited[topIdx] && isWhiteBackground(pixels[topIdx])) {
+                visited[topIdx] = true
+                queue.add(topIdx)
+            }
+            val bottomIdx = (height - 1) * width + x
+            if (!visited[bottomIdx] && isWhiteBackground(pixels[bottomIdx])) {
+                visited[bottomIdx] = true
+                queue.add(bottomIdx)
+            }
+        }
+        for (y in 0 until height) {
+            val leftIdx = y * width
+            if (!visited[leftIdx] && isWhiteBackground(pixels[leftIdx])) {
+                visited[leftIdx] = true
+                queue.add(leftIdx)
+            }
+            val rightIdx = y * width + (width - 1)
+            if (!visited[rightIdx] && isWhiteBackground(pixels[rightIdx])) {
+                visited[rightIdx] = true
+                queue.add(rightIdx)
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            val idx = queue.poll() ?: continue
+            pixels[idx] = 0x00FFFFFF
+            val x = idx % width
+            val y = idx / width
+
+            val left = if (x > 0) idx - 1 else -1
+            val right = if (x < width - 1) idx + 1 else -1
+            val top = if (y > 0) idx - width else -1
+            val bottom = if (y < height - 1) idx + width else -1
+
+            val neighbors = intArrayOf(left, right, top, bottom)
+            for (n in neighbors) {
+                if (n != -1 && !visited[n]) {
+                    visited[n] = true
+                    if (isWhiteBackground(pixels[n])) {
+                        queue.add(n)
+                    }
+                }
+            }
+        }
+
+        for (i in pixels.indices) {
+            if (pixels[i] != 0x00FFFFFF) {
+                val color = pixels[i]
+                val r = (color shr 16) and 0xFF
+                val g = (color shr 8) and 0xFF
+                val b = color and 0xFF
+                if (r > 180 && g > 180 && b > 180) {
+                    val x = i % width
+                    val y = i / width
+                    val hasTransNeighbor = (x > 0 && pixels[i - 1] == 0x00FFFFFF) ||
+                            (x < width - 1 && pixels[i + 1] == 0x00FFFFFF) ||
+                            (y > 0 && pixels[i - width] == 0x00FFFFFF) ||
+                            (y < height - 1 && pixels[i + width] == 0x00FFFFFF)
+                    if (hasTransNeighbor) {
+                        pixels[i] = 0x00FFFFFF
+                    }
+                }
+            }
+        }
+
+        original.setPixels(pixels, 0, width, 0, 0, width, height)
+        original.asImageBitmap()
+    }
+}
+
+@Composable
 fun TimoteoGameView(
     modifier: Modifier = Modifier
 ) {
@@ -137,10 +235,15 @@ fun TimoteoGameView(
     val isVipMonthly by billingManager.isVipMonthly.collectAsState()
     val isUltraYearly by billingManager.isUltraYearly.collectAsState()
 
-    // Skins Bitmaps
-    val nanoBananaBitmap = ImageBitmap.imageResource(id = R.drawable.ic_timoteo_nanobanana)
-    val hdCatBitmap = ImageBitmap.imageResource(id = R.drawable.ic_timoteo_cat)
+    // Skins Bitmaps (Processed to remove outer white background square)
+    val nanoBananaBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_nanobanana)
+    val hdCatBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_cat)
     var selectedSkin by remember { mutableStateOf(TimoteoSkin.NANO_BANANA) }
+
+    val hudActiveBitmap = when (selectedSkin) {
+        TimoteoSkin.HD_CAT -> hdCatBitmap
+        else -> nanoBananaBitmap
+    }
 
     // Game states
     var score by remember { mutableIntStateOf(0) }
@@ -809,10 +912,10 @@ fun TimoteoGameView(
                         }
                 ) {
                     Image(
-                        painter = painterResource(id = selectedSkin.iconRes),
+                        bitmap = hudActiveBitmap,
                         contentDescription = "Timoteo Gatito Skin",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().padding(4.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1059,10 +1162,10 @@ fun TimoteoGameView(
                         modifier = Modifier.size(110.dp)
                     ) {
                         Image(
-                            painter = painterResource(id = selectedSkin.iconRes),
+                            bitmap = hudActiveBitmap,
                             contentDescription = "Gatito Timoteo Skin Active",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize().padding(8.dp)
                         )
                     }
 
@@ -1339,11 +1442,14 @@ private fun DrawScope.drawTimoteo(
         val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 8f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 3f
         val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f) + walkWaddle
 
+        val catColorFilter = if (isWhiteVip) ColorFilter.tint(Color(0xFFFAFAFA), BlendMode.SrcAtop) else null
+
         rotate(degrees = tiltAngle, pivot = Offset(catX, drawCatY)) {
             drawImage(
                 image = activeBitmap,
                 dstOffset = spriteTopLeft,
-                dstSize = IntSize(spriteWidth, spriteHeight)
+                dstSize = IntSize(spriteWidth, spriteHeight),
+                colorFilter = catColorFilter
             )
 
             if (isWhiteVip) {
