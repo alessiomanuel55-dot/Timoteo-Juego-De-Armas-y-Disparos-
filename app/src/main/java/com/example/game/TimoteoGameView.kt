@@ -94,6 +94,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.nativeCanvas
 import com.example.R
 import com.example.ui.theme.DarkGameBg
 import com.example.ui.theme.DarkGameCard
@@ -118,7 +119,7 @@ enum class TimoteoSkin(
     val iconRes: Int
 ) {
     NANO_BANANA("nano_banana", "Nano Banana 🍌", "NANO BANANA 🍌", "Gatito Negro Tierno con Blaster Nano Banana", R.drawable.ic_timoteo_nanobanana),
-    WHITE_VIP_CAT("white_vip_cat", "Gatito Blanco VIP 🐱⚡", "VIP NANO BANANA 👑", "Skin Nano Banana: Gatito blanco con capa, broche dorado VIP y Blaster Eléctrico en Cadena", R.drawable.ic_timoteo_cat),
+    WHITE_VIP_CAT("white_vip_cat", "Gatito Blanco VIP 🐱⚡", "VIP NANO BANANA 👑", "Skin Nano Banana: Gatito blanco con capa, broche dorado VIP y Blaster Eléctrico en Cadena", R.drawable.img_timoteo_white_vip_1785984795061),
     HD_CAT("hd_cat", "Gato Negro HD 🐱", "GATO NEGRO HD 🐱", "Gatito Negro Full Body Ultra HD", R.drawable.ic_timoteo_cat),
     VECTORIAL("vectorial", "Vectorial 🎨", "VECTORIAL 🎨", "Diseño Vectorial Procedural", R.drawable.ic_timoteo_nanobanana)
 }
@@ -127,7 +128,18 @@ enum class TimoteoSkin(
 fun rememberTransparentBitmap(resId: Int): ImageBitmap {
     val context = LocalContext.current
     return remember(resId) {
-        val options = BitmapFactory.Options().apply { inMutable = true }
+        val optionsBounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeResource(context.resources, resId, optionsBounds)
+        val maxSize = 256
+        var scale = 1
+        while (optionsBounds.outWidth / scale / 2 >= maxSize && optionsBounds.outHeight / scale / 2 >= maxSize) {
+            scale *= 2
+        }
+
+        val options = BitmapFactory.Options().apply { 
+            inMutable = true
+            inSampleSize = scale
+        }
         val original = BitmapFactory.decodeResource(context.resources, resId, options)
             ?: return@remember ImageBitmap(1, 1)
 
@@ -139,41 +151,72 @@ fun rememberTransparentBitmap(resId: Int): ImageBitmap {
         val visited = BooleanArray(width * height)
         val queue = java.util.ArrayDeque<Int>()
 
-        fun isWhiteBackground(color: Int): Boolean {
+        // Sample corners to find the background color
+        val cornerPixels = intArrayOf(
+            pixels[0], 
+            pixels[width - 1], 
+            pixels[(height - 1) * width], 
+            pixels[(height - 1) * width + width - 1]
+        )
+        
+        // Find most common corner color to use as background reference
+        var bgR = 255; var bgG = 255; var bgB = 255
+        for (c in cornerPixels) {
+            val r = (c shr 16) and 0xFF
+            val g = (c shr 8) and 0xFF
+            val b = c and 0xFF
+            if (r > 240 && g > 240 && b > 240) {
+                bgR = 255; bgG = 255; bgB = 255
+                break
+            } else {
+                bgR = r; bgG = g; bgB = b
+            }
+        }
+
+        fun isBackground(color: Int): Boolean {
             val r = (color shr 16) and 0xFF
             val g = (color shr 8) and 0xFF
             val b = color and 0xFF
-            return r > 200 && g > 200 && b > 200
+            
+            if (r > 245 && g > 245 && b > 245) return true
+            
+            val diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
+            return diff <= 25
         }
 
+        val borderInset = 20
         for (x in 0 until width) {
-            val topIdx = x
-            if (!visited[topIdx] && isWhiteBackground(pixels[topIdx])) {
-                visited[topIdx] = true
-                queue.add(topIdx)
-            }
-            val bottomIdx = (height - 1) * width + x
-            if (!visited[bottomIdx] && isWhiteBackground(pixels[bottomIdx])) {
-                visited[bottomIdx] = true
-                queue.add(bottomIdx)
+            for (y in 0 until borderInset) {
+                val idx1 = y * width + x
+                if (!visited[idx1] && isBackground(pixels[idx1])) {
+                    visited[idx1] = true
+                    queue.add(idx1)
+                }
+                val idx2 = (height - 1 - y) * width + x
+                if (!visited[idx2] && isBackground(pixels[idx2])) {
+                    visited[idx2] = true
+                    queue.add(idx2)
+                }
             }
         }
         for (y in 0 until height) {
-            val leftIdx = y * width
-            if (!visited[leftIdx] && isWhiteBackground(pixels[leftIdx])) {
-                visited[leftIdx] = true
-                queue.add(leftIdx)
-            }
-            val rightIdx = y * width + (width - 1)
-            if (!visited[rightIdx] && isWhiteBackground(pixels[rightIdx])) {
-                visited[rightIdx] = true
-                queue.add(rightIdx)
+            for (x in 0 until borderInset) {
+                val idx1 = y * width + x
+                if (!visited[idx1] && isBackground(pixels[idx1])) {
+                    visited[idx1] = true
+                    queue.add(idx1)
+                }
+                val idx2 = y * width + (width - 1 - x)
+                if (!visited[idx2] && isBackground(pixels[idx2])) {
+                    visited[idx2] = true
+                    queue.add(idx2)
+                }
             }
         }
 
         while (!queue.isEmpty()) {
             val idx = queue.poll() ?: continue
-            pixels[idx] = 0x00FFFFFF
+            pixels[idx] = 0x00000000
             val x = idx % width
             val y = idx / width
 
@@ -186,7 +229,7 @@ fun rememberTransparentBitmap(resId: Int): ImageBitmap {
             for (n in neighbors) {
                 if (n != -1 && !visited[n]) {
                     visited[n] = true
-                    if (isWhiteBackground(pixels[n])) {
+                    if (isBackground(pixels[n])) {
                         queue.add(n)
                     }
                 }
@@ -194,25 +237,35 @@ fun rememberTransparentBitmap(resId: Int): ImageBitmap {
         }
 
         for (i in pixels.indices) {
-            if (pixels[i] != 0x00FFFFFF) {
-                val color = pixels[i]
-                val r = (color shr 16) and 0xFF
-                val g = (color shr 8) and 0xFF
-                val b = color and 0xFF
-                if (r > 180 && g > 180 && b > 180) {
+            if (pixels[i] != 0x00000000) {
+                if (isBackground(pixels[i])) {
                     val x = i % width
                     val y = i / width
-                    val hasTransNeighbor = (x > 0 && pixels[i - 1] == 0x00FFFFFF) ||
-                            (x < width - 1 && pixels[i + 1] == 0x00FFFFFF) ||
-                            (y > 0 && pixels[i - width] == 0x00FFFFFF) ||
-                            (y < height - 1 && pixels[i + width] == 0x00FFFFFF)
+                    val hasTransNeighbor = (x > 0 && pixels[i - 1] == 0x00000000) ||
+                            (x < width - 1 && pixels[i + 1] == 0x00000000) ||
+                            (y > 0 && pixels[i - width] == 0x00000000) ||
+                            (y < height - 1 && pixels[i + width] == 0x00000000)
                     if (hasTransNeighbor) {
-                        pixels[i] = 0x00FFFFFF
+                        pixels[i] = 0x00000000
                     }
                 }
             }
         }
 
+        for (x in 0 until width) {
+            for (y in 0 until 8) {
+                pixels[y * width + x] = 0x00000000
+                pixels[(height - 1 - y) * width + x] = 0x00000000
+            }
+        }
+        for (y in 0 until height) {
+            for (x in 0 until 8) {
+                pixels[y * width + x] = 0x00000000
+                pixels[y * width + (width - 1 - x)] = 0x00000000
+            }
+        }
+
+        original.setHasAlpha(true)
         original.setPixels(pixels, 0, width, 0, 0, width, height)
         original.asImageBitmap()
     }
@@ -238,10 +291,13 @@ fun TimoteoGameView(
     // Skins Bitmaps (Processed to remove outer white background square)
     val nanoBananaBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_nanobanana)
     val hdCatBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_cat)
+    val whiteVipBitmap = rememberTransparentBitmap(resId = R.drawable.img_timoteo_white_vip_1785984795061)
+    val woodenCrateBitmap = ImageBitmap.imageResource(id = R.drawable.crate_wooden_b002_1786018993067)
     var selectedSkin by remember { mutableStateOf(TimoteoSkin.NANO_BANANA) }
 
     val hudActiveBitmap = when (selectedSkin) {
         TimoteoSkin.HD_CAT -> hdCatBitmap
+        TimoteoSkin.WHITE_VIP_CAT -> whiteVipBitmap
         else -> nanoBananaBitmap
     }
 
@@ -619,8 +675,6 @@ fun TimoteoGameView(
                             }
 
                             if (crate.hp <= 0) {
-                                crateIter2.remove()
-                                cratesDestroyed++
                                 comboCount++
 
                                 soundManager.playExplosionSound()
@@ -630,7 +684,7 @@ fun TimoteoGameView(
 
                                 // WHITE_VIP_CAT: Blaster Eléctrico en Cadena que destruye 3 cajas
                                 if (selectedSkin == TimoteoSkin.WHITE_VIP_CAT) {
-                                    val chainTargets = crates.filter { it.id != crate.id }
+                                    val chainTargets = crates.filter { it.id != crate.id && it.hp > 0 }
                                         .sortedBy { c ->
                                             val dx = (c.x + c.width / 2) - (crate.x + crate.width / 2)
                                             val dy = (c.y + c.height / 2) - (crate.y + crate.height / 2)
@@ -676,41 +730,6 @@ fun TimoteoGameView(
                                     )
                                 }
 
-                                val pointsEarned = crate.type.points * (1 + comboCount / 5)
-                                score += pointsEarned
-
-                                // Wood Explosion Particles
-                                val particleCount = if (crate.type == CrateType.TNT) 25 else 14
-                                val pColor = if (crate.type == CrateType.TNT) HeartRed else crate.type.color
-
-                                for (i in 0..particleCount) {
-                                    particles.add(
-                                        Particle(
-                                            x = crate.x + crate.width / 2,
-                                            y = crate.y + crate.height / 2,
-                                            vx = (Random.nextFloat() - 0.5f) * 16f,
-                                            vy = (Random.nextFloat() - 0.5f) * 16f,
-                                            radius = Random.nextFloat() * 10f + 4f,
-                                            color = pColor,
-                                            life = 1f,
-                                            maxLife = 1f,
-                                            type = if (crate.type == CrateType.TNT) ParticleType.EXPLOSION_FIRE else ParticleType.WOOD_CHIP
-                                        )
-                                    )
-                                }
-
-                                // Score popup
-                                val comboText = if (comboCount >= 3) " COMBO x$comboCount!" else ""
-                                floatingTexts.add(
-                                    FloatingText(
-                                        id = nextEntityId++,
-                                        text = "+$pointsEarned$comboText",
-                                        x = crate.x + crate.width / 2,
-                                        y = crate.y,
-                                        color = if (comboCount >= 3) NeonCyan else YellowLaser
-                                    )
-                                )
-
                                 // Handle TNT explosion radius
                                 if (crate.type == CrateType.TNT) {
                                     screenShake = 18f
@@ -718,32 +737,16 @@ fun TimoteoGameView(
                                     val tntCenterX = crate.x + crate.width / 2
                                     val tntCenterY = crate.y + crate.height / 2
 
-                                    val tntCrateIter = crates.iterator()
-                                    while (tntCrateIter.hasNext()) {
-                                        val otherCrate = tntCrateIter.next()
-                                        val oCenterX = otherCrate.x + otherCrate.width / 2
-                                        val oCenterY = otherCrate.y + otherCrate.height / 2
-                                        val distToTNT = sqrt((oCenterX - tntCenterX) * (oCenterX - tntCenterX) + (oCenterY - tntCenterY) * (oCenterY - tntCenterY))
-                                        if (distToTNT < 320f) {
-                                            tntCrateIter.remove()
-                                            cratesDestroyed++
-                                            score += otherCrate.type.points
+                                    for (otherCrate in crates) {
+                                        if (otherCrate.id != crate.id && otherCrate.hp > 0) {
+                                            val oCenterX = otherCrate.x + otherCrate.width / 2
+                                            val oCenterY = otherCrate.y + otherCrate.height / 2
+                                            val distToTNT = sqrt((oCenterX - tntCenterX) * (oCenterX - tntCenterX) + (oCenterY - tntCenterY) * (oCenterY - tntCenterY))
+                                            if (distToTNT < 320f) {
+                                                otherCrate.hp = 0
+                                            }
                                         }
                                     }
-                                }
-
-                                // Chance to drop power up
-                                if (Random.nextFloat() < 0.15f) {
-                                    val powerTypes = PowerUpType.values()
-                                    val chosenPower = powerTypes[Random.nextInt(powerTypes.size)]
-                                    droppedPowerUps.add(
-                                        DroppedPowerUp(
-                                            id = nextEntityId++,
-                                            type = chosenPower,
-                                            x = crate.x + crate.width / 2,
-                                            y = crate.y + crate.height / 2
-                                        )
-                                    )
                                 }
                             }
                             break
@@ -752,6 +755,65 @@ fun TimoteoGameView(
 
                     if (bulletHit) {
                         bulletIter2.remove()
+                    }
+                }
+
+                // Unified crate destruction cleanup
+                val cleanupIter = crates.iterator()
+                while (cleanupIter.hasNext()) {
+                    val crate = cleanupIter.next()
+                    if (crate.hp <= 0) {
+                        cleanupIter.remove()
+                        cratesDestroyed++
+                        
+                        val pointsEarned = crate.type.points * (1 + comboCount / 5)
+                        score += pointsEarned
+
+                        // Wood Explosion Particles
+                        val particleCount = if (crate.type == CrateType.TNT) 25 else 14
+                        val pColor = if (crate.type == CrateType.TNT) HeartRed else crate.type.color
+
+                        for (i in 0..particleCount) {
+                            particles.add(
+                                Particle(
+                                    x = crate.x + crate.width / 2,
+                                    y = crate.y + crate.height / 2,
+                                    vx = (Random.nextFloat() - 0.5f) * 16f,
+                                    vy = (Random.nextFloat() - 0.5f) * 16f,
+                                    radius = Random.nextFloat() * 10f + 4f,
+                                    color = pColor,
+                                    life = 1f,
+                                    maxLife = 1f,
+                                    type = if (crate.type == CrateType.TNT) ParticleType.EXPLOSION_FIRE else ParticleType.WOOD_CHIP
+                                )
+                            )
+                        }
+
+                        // Score popup
+                        val comboText = if (comboCount >= 3) " COMBO x$comboCount!" else ""
+                        floatingTexts.add(
+                            FloatingText(
+                                id = nextEntityId++,
+                                text = "+$pointsEarned$comboText",
+                                x = crate.x + crate.width / 2,
+                                y = crate.y,
+                                color = if (comboCount >= 3) NeonCyan else YellowLaser
+                            )
+                        )
+
+                        // Chance to drop power up
+                        if (Random.nextFloat() < 0.15f) {
+                            val powerTypes = PowerUpType.values()
+                            val chosenPower = powerTypes[Random.nextInt(powerTypes.size)]
+                            droppedPowerUps.add(
+                                DroppedPowerUp(
+                                    id = nextEntityId++,
+                                    type = chosenPower,
+                                    x = crate.x + crate.width / 2,
+                                    y = crate.y + crate.height / 2
+                                )
+                            )
+                        }
                     }
                 }
 
@@ -832,7 +894,7 @@ fun TimoteoGameView(
 
                 // Draw Falling Crates
                 crates.forEach { crate ->
-                    drawCrate(crate)
+                    drawCrate(crate, woodenCrateBitmap)
                 }
 
                 // Draw Bullets
@@ -865,7 +927,8 @@ fun TimoteoGameView(
                     walkAnimPhase = walkAnimPhase,
                     selectedSkin = selectedSkin,
                     nanoBananaBitmap = nanoBananaBitmap,
-                    hdCatBitmap = hdCatBitmap
+                    hdCatBitmap = hdCatBitmap,
+                    whiteVipBitmap = whiteVipBitmap
                 )
 
                 // Draw Floating Damage/Score Texts
@@ -1350,7 +1413,8 @@ private fun DrawScope.drawTimoteo(
     walkAnimPhase: Float = 0f,
     selectedSkin: TimoteoSkin = TimoteoSkin.NANO_BANANA,
     nanoBananaBitmap: ImageBitmap? = null,
-    hdCatBitmap: ImageBitmap? = null
+    hdCatBitmap: ImageBitmap? = null,
+    whiteVipBitmap: ImageBitmap? = null
 ) {
     // Vertical bounce during walking
     val bobY = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 6f else 0f
@@ -1361,6 +1425,7 @@ private fun DrawScope.drawTimoteo(
     // Determine active PNG skin bitmap
     val activeBitmap = when (selectedSkin) {
         TimoteoSkin.HD_CAT -> hdCatBitmap ?: nanoBananaBitmap
+        TimoteoSkin.WHITE_VIP_CAT -> whiteVipBitmap ?: hdCatBitmap ?: nanoBananaBitmap
         else -> nanoBananaBitmap ?: hdCatBitmap
     }
 
@@ -1402,7 +1467,8 @@ private fun DrawScope.drawTimoteo(
         radius = 120f
     )
     drawPath(path = capePath, brush = goldBrush)
-    drawPath(path = capePath, color = Color(0xFFFFF59D), style = Stroke(width = 4f))
+    val capeBorderColor = if (isWhiteVip) Color(0xFFFF5252) else Color(0xFFFFF59D)
+    drawPath(path = capePath, color = capeBorderColor, style = Stroke(width = 4f))
 
     // Animated Kitten Paws stepping (left & right legs with pink toe beans)
     val legAnimPhase = if (isWalking) walkAnimPhase * 1.6f else ((System.currentTimeMillis() % 1600) / 1600f * 2 * Math.PI).toFloat()
@@ -1442,14 +1508,11 @@ private fun DrawScope.drawTimoteo(
         val walkWaddle = if (isWalking) sin(walkAnimPhase.toDouble()).toFloat() * 8f else sin((System.currentTimeMillis() % 2000) / 2000f * 2 * Math.PI).toFloat() * 3f
         val tiltAngle = (Math.toDegrees(gunAngleRad.toDouble()).toFloat() + 90f).coerceIn(-25f, 25f) + walkWaddle
 
-        val catColorFilter = if (isWhiteVip) ColorFilter.tint(Color(0xFFFAFAFA), BlendMode.SrcAtop) else null
-
         rotate(degrees = tiltAngle, pivot = Offset(catX, drawCatY)) {
             drawImage(
                 image = activeBitmap,
                 dstOffset = spriteTopLeft,
-                dstSize = IntSize(spriteWidth, spriteHeight),
-                colorFilter = catColorFilter
+                dstSize = IntSize(spriteWidth, spriteHeight)
             )
 
             if (isWhiteVip) {
@@ -1470,12 +1533,56 @@ private fun DrawScope.drawTimoteo(
         )
     }
 
-    // Muzzle Recoil Glow Effect on shot (without gun obstructing cat face)
+    // Blaster gun held in Timoteo's paws pointing at target
+    if (isWhiteVip) {
+        val gunPivotX = catX + 35f // Offset so it doesn't block the face completely
+        val gunPivotY = drawCatY + 15f
+        val gunAngleDeg = Math.toDegrees(gunAngleRad.toDouble()).toFloat()
+
+        rotate(degrees = gunAngleDeg, pivot = Offset(gunPivotX, gunPivotY)) {
+            val drawGunX = gunPivotX - recoilOffset
+
+            // Electric Metallic Gun Body
+            drawRoundRect(
+                color = Color(0xFF37474F),
+                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
+                size = Size(75f, 24f),
+                cornerRadius = CornerRadius(6f)
+            )
+            drawRoundRect(
+                color = Color(0xFF00E5FF),
+                topLeft = Offset(drawGunX + 15f, gunPivotY - 12f),
+                size = Size(75f, 24f),
+                cornerRadius = CornerRadius(6f),
+                style = Stroke(width = 2.5f)
+            )
+
+            // Electric Glowing Coils
+            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 45f, gunPivotY), radius = 9f)
+            drawCircle(color = Color.White, center = Offset(drawGunX + 45f, gunPivotY), radius = 4f)
+
+            // Muzzle Barrel
+            drawRoundRect(
+                color = Color(0xFF263238),
+                topLeft = Offset(drawGunX + 85f, gunPivotY - 8f),
+                size = Size(20f, 16f),
+                cornerRadius = CornerRadius(4f)
+            )
+            // Electric Tip
+            drawCircle(color = Color(0xFF00E5FF), center = Offset(drawGunX + 105f, gunPivotY), radius = 8f)
+            drawCircle(color = Color.White, center = Offset(drawGunX + 105f, gunPivotY), radius = 4f)
+        }
+    }
+
+    // Muzzle Recoil Glow Effect on shot
     if (recoilOffset > 1f) {
-        val muzzleX = catX + cos(gunAngleRad) * 75f
-        val muzzleY = (drawCatY - 12f) + sin(gunAngleRad) * 75f
+        val gunPivotX = if (isWhiteVip) catX + 35f else catX
+        val gunPivotY = if (isWhiteVip) drawCatY + 15f else drawCatY - 12f
+        val muzzleX = gunPivotX + cos(gunAngleRad) * 75f
+        val muzzleY = gunPivotY + sin(gunAngleRad) * 75f
+        val glowColor = if (isWhiteVip) Color(0xFF00E5FF) else YellowLaser
         drawCircle(
-            color = YellowLaser.copy(alpha = 0.85f),
+            color = glowColor.copy(alpha = 0.85f),
             center = Offset(muzzleX, muzzleY),
             radius = 18f
         )
@@ -1488,64 +1595,144 @@ private fun DrawScope.drawTimoteo(
 }
 
 // Draw Falling Wood / Colored Crate
-private fun DrawScope.drawCrate(crate: Crate) {
+private fun DrawScope.drawCrate(crate: Crate, woodenCrateBitmap: ImageBitmap?) {
     val cx = crate.x + crate.width / 2
     val cy = crate.y + crate.height / 2
+    val x = crate.x
+    val y = crate.y
+    val w = crate.width
+    val h = crate.height
 
     rotate(degrees = crate.rotationAngle, pivot = Offset(cx, cy)) {
-        // Main Crate Box Body
-        drawRoundRect(
-            color = crate.type.color,
-            topLeft = Offset(crate.x, crate.y),
-            size = Size(crate.width, crate.height),
-            cornerRadius = CornerRadius(12f)
-        )
+        if (crate.type == CrateType.WOOD && woodenCrateBitmap != null) {
+            drawImage(
+                image = woodenCrateBitmap,
+                dstOffset = IntOffset(x.toInt(), y.toInt()),
+                dstSize = IntSize(w.toInt(), h.toInt())
+            )
+        } else {
+            // Base background
+            drawRect(
+                color = crate.type.color,
+                topLeft = Offset(x, y),
+                size = Size(w, h)
+            )
 
-        // Crate Outer Bezel Border
-        drawRoundRect(
-            color = crate.type.borderColors.first,
-            topLeft = Offset(crate.x, crate.y),
-            size = Size(crate.width, crate.height),
-            cornerRadius = CornerRadius(12f),
-            style = Stroke(width = 6f)
-        )
+            // Vertical planks (lines)
+            val plankColor = crate.type.borderColors.first.copy(alpha = 0.4f)
+            drawLine(color = plankColor, start = Offset(x + w * 0.33f, y), end = Offset(x + w * 0.33f, y + h), strokeWidth = 2f)
+            drawLine(color = plankColor, start = Offset(x + w * 0.66f, y), end = Offset(x + w * 0.66f, y + h), strokeWidth = 2f)
 
-        // Wood Plank Slats or Metallic Cross Braces
-        drawLine(
-            color = crate.type.borderColors.first,
-            start = Offset(crate.x + 8f, crate.y + 8f),
-            end = Offset(crate.x + crate.width - 8f, crate.y + crate.height - 8f),
-            strokeWidth = 5f
-        )
-        drawLine(
-            color = crate.type.borderColors.first,
-            start = Offset(crate.x + crate.width - 8f, crate.y + 8f),
-            end = Offset(crate.x + 8f, crate.y + crate.height - 8f),
-            strokeWidth = 5f
-        )
+            // Complex Box Frame
+            val framePath = androidx.compose.ui.graphics.Path().apply {
+                val t = w * 0.16f // thickness
+                val nW = w * 0.16f // notch half-width
+                val nD = w * 0.06f // notch depth
+                
+                // Outer rectangle
+                addRect(androidx.compose.ui.geometry.Rect(x, y, x + w, y + h))
+                
+                // Inner cutout (counter-clockwise to subtract when using EvenOdd)
+                moveTo(x + t, y + t + nD)
+                lineTo(x + t + nD, y + t)
+                
+                lineTo(cx - nW, y + t)
+                lineTo(cx - nW + nD, y + t - nD)
+                lineTo(cx + nW - nD, y + t - nD)
+                lineTo(cx + nW, y + t)
+                
+                lineTo(x + w - t - nD, y + t)
+                lineTo(x + w - t, y + t + nD)
+                
+                lineTo(x + w - t, cy - nW)
+                lineTo(x + w - t + nD, cy - nW + nD)
+                lineTo(x + w - t + nD, cy + nW - nD)
+                lineTo(x + w - t, cy + nW)
+                
+                lineTo(x + w - t, y + h - t - nD)
+                lineTo(x + w - t - nD, y + h - t)
+                
+                lineTo(cx + nW, y + h - t)
+                lineTo(cx + nW - nD, y + h - t + nD)
+                lineTo(cx - nW + nD, y + h - t + nD)
+                lineTo(cx - nW, y + h - t)
+                
+                lineTo(x + t + nD, y + h - t)
+                lineTo(x + t, y + h - t - nD)
+                
+                lineTo(x + t, cy + nW)
+                lineTo(x + t - nD, cy + nW - nD)
+                lineTo(x + t - nD, cy - nW + nD)
+                lineTo(x + t, cy - nW)
+                close()
+            }
+            framePath.fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+            drawPath(path = framePath, color = crate.type.borderColors.first)
 
-        // Corner Metallic Brackets
-        val bracketSize = 18f
-        drawRect(
-            color = crate.type.borderColors.second,
-            topLeft = Offset(crate.x, crate.y),
-            size = Size(bracketSize, bracketSize)
-        )
-        drawRect(
-            color = crate.type.borderColors.second,
-            topLeft = Offset(crate.x + crate.width - bracketSize, crate.y),
-            size = Size(bracketSize, bracketSize)
-        )
-        drawRect(
-            color = crate.type.borderColors.second,
-            topLeft = Offset(crate.x, crate.y + crate.height - bracketSize),
-            size = Size(bracketSize, bracketSize)
-        )
-        drawRect(
-            color = crate.type.borderColors.second,
-            topLeft = Offset(crate.x + crate.width - bracketSize, crate.y + crate.height - bracketSize),
-            size = Size(bracketSize, bracketSize)
-        )
+            // Outer thin border for definition
+            drawRect(
+                color = crate.type.borderColors.second,
+                topLeft = Offset(x, y),
+                size = Size(w, h),
+                style = Stroke(width = 3f)
+            )
+
+            // Inner frame border shadow/highlight
+            val innerPath = androidx.compose.ui.graphics.Path().apply {
+                val t = w * 0.16f
+                val nW = w * 0.16f
+                val nD = w * 0.06f
+                moveTo(x + t, y + t + nD)
+                lineTo(x + t + nD, y + t)
+                lineTo(cx - nW, y + t)
+                lineTo(cx - nW + nD, y + t - nD)
+                lineTo(cx + nW - nD, y + t - nD)
+                lineTo(cx + nW, y + t)
+                lineTo(x + w - t - nD, y + t)
+                lineTo(x + w - t, y + t + nD)
+                lineTo(x + w - t, cy - nW)
+                lineTo(x + w - t + nD, cy - nW + nD)
+                lineTo(x + w - t + nD, cy + nW - nD)
+                lineTo(x + w - t, cy + nW)
+                lineTo(x + w - t, y + h - t - nD)
+                lineTo(x + w - t - nD, y + h - t)
+                lineTo(cx + nW, y + h - t)
+                lineTo(cx + nW - nD, y + h - t + nD)
+                lineTo(cx - nW + nD, y + h - t + nD)
+                lineTo(cx - nW, y + h - t)
+                lineTo(x + t + nD, y + h - t)
+                lineTo(x + t, y + h - t - nD)
+                lineTo(x + t, cy + nW)
+                lineTo(x + t - nD, cy + nW - nD)
+                lineTo(x + t - nD, cy - nW + nD)
+                lineTo(x + t, cy - nW)
+                close()
+            }
+            drawPath(path = innerPath, color = crate.type.borderColors.second, style = Stroke(width = 2f))
+
+            // Nails
+            val nailColor = Color(0xFFD6D6D6)
+            val nailShadow = Color(0xFF424242)
+            val nailRadius = w * 0.035f
+            val margin = w * 0.08f
+            
+            val nails = listOf(
+                Offset(x + margin, y + margin),
+                Offset(x + w - margin, y + margin),
+                Offset(x + margin, y + h - margin),
+                Offset(x + w - margin, y + h - margin),
+                Offset(cx, y + margin * 0.5f),
+                Offset(cx, y + h - margin * 0.5f),
+                Offset(x + margin * 0.5f, cy),
+                Offset(x + w - margin * 0.5f, cy)
+            )
+            
+            for (nail in nails) {
+                drawCircle(color = nailShadow, center = Offset(nail.x, nail.y + 2f), radius = nailRadius)
+                drawCircle(color = nailColor, center = nail, radius = nailRadius)
+                drawCircle(color = Color.White, center = Offset(nail.x - 1f, nail.y - 1f), radius = nailRadius * 0.3f)
+            }
+        }
 
         // Label Tag or HP Bar for steel crate
         if (crate.maxHp > 1) {
