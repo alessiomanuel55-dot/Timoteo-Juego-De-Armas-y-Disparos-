@@ -181,7 +181,7 @@ fun rememberTransparentBitmap(resId: Int): ImageBitmap {
             if (r > 245 && g > 245 && b > 245) return true
             
             val diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
-            return diff <= 25
+            return diff <= 100
         }
 
         val borderInset = 20
@@ -292,7 +292,11 @@ fun TimoteoGameView(
     val nanoBananaBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_nanobanana)
     val hdCatBitmap = rememberTransparentBitmap(resId = R.drawable.ic_timoteo_cat)
     val whiteVipBitmap = rememberTransparentBitmap(resId = R.drawable.img_timoteo_white_vip_1785984795061)
-    val woodenCrateBitmap = ImageBitmap.imageResource(id = R.drawable.crate_wooden_b002_1786018993067)
+    val woodenCrateBitmap = rememberTransparentBitmap(resId = R.drawable.crate_wooden_b002_1786018993067)
+    val redCrateBitmap = rememberTransparentBitmap(resId = R.drawable.crate_red_b009_1786019961282)
+    val greenCrateBitmap = rememberTransparentBitmap(resId = R.drawable.crate_green_b004_1786019972035)
+    val yellowCrateBitmap = rememberTransparentBitmap(resId = R.drawable.crate_yellow_b008_1786019982164)
+    val blueCrateBitmap = rememberTransparentBitmap(resId = R.drawable.crate_blue_b007_1786019995059)
     var selectedSkin by remember { mutableStateOf(TimoteoSkin.NANO_BANANA) }
 
     val hudActiveBitmap = when (selectedSkin) {
@@ -303,6 +307,8 @@ fun TimoteoGameView(
 
     // Game states
     var score by remember { mutableIntStateOf(0) }
+    var gold by remember { mutableIntStateOf(0) }
+    var exp by remember { mutableIntStateOf(0) }
     var lives by remember { mutableIntStateOf(3) }
     var cratesDestroyed by remember { mutableIntStateOf(0) }
     var shotsFired by remember { mutableIntStateOf(0) }
@@ -415,7 +421,7 @@ fun TimoteoGameView(
                     vx = cos(angle) * bulletSpeed,
                     vy = sin(angle) * bulletSpeed,
                     color = bulletColor,
-                    isPowerShot = (selectedSkin == TimoteoSkin.WHITE_VIP_CAT)
+                    isPowerShot = false
                 )
             )
         }
@@ -485,9 +491,10 @@ fun TimoteoGameView(
                     // Determine crate type based on score
                     val roll = Random.nextFloat()
                     val crateType = when {
-                        roll < 0.12f && score > 5 -> CrateType.TNT
-                        roll < 0.28f && score > 3 -> CrateType.STEEL
-                        roll < 0.40f -> CrateType.GOLD
+                        roll < 0.12f && score > 5 -> CrateType.BOMB
+                        roll < 0.22f && score > 10 -> CrateType.EXP
+                        roll < 0.35f && score > 3 -> CrateType.STEEL
+                        roll < 0.48f -> CrateType.GOLD
                         else -> CrateType.WOOD
                     }
 
@@ -532,45 +539,50 @@ fun TimoteoGameView(
                     // Check if crate hit the ground line (Timoteo's zone)
                     if (crate.y + crate.height >= catY - 20f) {
                         crateIter.remove()
-                        lives--
-                        comboCount = 0
-                        screenShake = 22f
-                        soundManager.playLifeLostSound()
+                        
+                        // If it's a BOMB, missing it is good! So we don't lose a life.
+                        // If it's anything else, missing it breaks combo and costs a life.
+                        if (crate.type != CrateType.BOMB) {
+                            lives--
+                            comboCount = 0
+                            screenShake = 22f
+                            soundManager.playLifeLostSound()
 
-                        // Ground splash particles
-                        for (i in 0..15) {
-                            particles.add(
-                                Particle(
+                            // Ground splash particles
+                            for (i in 0..15) {
+                                particles.add(
+                                    Particle(
+                                        x = crate.x + crate.width / 2,
+                                        y = catY,
+                                        vx = (Random.nextFloat() - 0.5f) * 12f,
+                                        vy = -Random.nextFloat() * 10f,
+                                        radius = Random.nextFloat() * 8f + 4f,
+                                        color = HeartRed,
+                                        life = 1f,
+                                        maxLife = 1f,
+                                        type = ParticleType.SPARK
+                                    )
+                                )
+                            }
+
+                            floatingTexts.add(
+                                FloatingText(
+                                    id = nextEntityId++,
+                                    text = "-1 VIDA",
                                     x = crate.x + crate.width / 2,
-                                    y = catY,
-                                    vx = (Random.nextFloat() - 0.5f) * 12f,
-                                    vy = -Random.nextFloat() * 10f,
-                                    radius = Random.nextFloat() * 8f + 4f,
-                                    color = HeartRed,
-                                    life = 1f,
-                                    maxLife = 1f,
-                                    type = ParticleType.SPARK
+                                    y = catY - 40f,
+                                    color = HeartRed
                                 )
                             )
-                        }
 
-                        floatingTexts.add(
-                            FloatingText(
-                                id = nextEntityId++,
-                                text = "-1 VIDA",
-                                x = crate.x + crate.width / 2,
-                                y = catY - 40f,
-                                color = HeartRed
-                            )
-                        )
+                            if (lives <= 0) {
+                                isGameOver = true
+                                soundManager.playGameOverSound()
 
-                        if (lives <= 0) {
-                            isGameOver = true
-                            soundManager.playGameOverSound()
-
-                            if (score > highScore) {
-                                highScore = score
-                                prefs.edit().putInt("high_score", highScore).apply()
+                                if (score > highScore) {
+                                    highScore = score
+                                    prefs.edit().putInt("high_score", highScore).apply()
+                                }
                             }
                         }
                     }
@@ -731,7 +743,7 @@ fun TimoteoGameView(
                                 }
 
                                 // Handle TNT explosion radius
-                                if (crate.type == CrateType.TNT) {
+                                if (crate.type == CrateType.BOMB) {
                                     screenShake = 18f
                                     // Destroy adjacent crates
                                     val tntCenterX = crate.x + crate.width / 2
@@ -769,9 +781,63 @@ fun TimoteoGameView(
                         val pointsEarned = crate.type.points * (1 + comboCount / 5)
                         score += pointsEarned
 
+                        // Apply special effects based on crate type
+                        when (crate.type) {
+                            CrateType.GOLD -> {
+                                val goldEarned = 10 * (1 + comboCount / 2)
+                                gold += goldEarned
+                                floatingTexts.add(
+                                    FloatingText(
+                                        id = nextEntityId++,
+                                        text = "+$goldEarned ORO",
+                                        x = crate.x + crate.width / 2,
+                                        y = crate.y - 30f,
+                                        color = Color(0xFFFFD700)
+                                    )
+                                )
+                            }
+                            CrateType.EXP -> {
+                                val expEarned = 50 * (1 + comboCount / 2)
+                                exp += expEarned
+                                floatingTexts.add(
+                                    FloatingText(
+                                        id = nextEntityId++,
+                                        text = "+$expEarned EXP",
+                                        x = crate.x + crate.width / 2,
+                                        y = crate.y - 30f,
+                                        color = NeonGreen
+                                    )
+                                )
+                            }
+                            CrateType.BOMB -> {
+                                lives--
+                                comboCount = 0
+                                screenShake = 30f
+                                soundManager.playLifeLostSound()
+                                floatingTexts.add(
+                                    FloatingText(
+                                        id = nextEntityId++,
+                                        text = "-1 VIDA",
+                                        x = crate.x + crate.width / 2,
+                                        y = crate.y - 30f,
+                                        color = HeartRed
+                                    )
+                                )
+                                if (lives <= 0) {
+                                    isGameOver = true
+                                    soundManager.playGameOverSound()
+                                    if (score > highScore) {
+                                        highScore = score
+                                        prefs.edit().putInt("high_score", highScore).apply()
+                                    }
+                                }
+                            }
+                            else -> {}
+                        }
+
                         // Wood Explosion Particles
-                        val particleCount = if (crate.type == CrateType.TNT) 25 else 14
-                        val pColor = if (crate.type == CrateType.TNT) HeartRed else crate.type.color
+                        val particleCount = if (crate.type == CrateType.BOMB) 25 else 14
+                        val pColor = if (crate.type == CrateType.BOMB) HeartRed else crate.type.color
 
                         for (i in 0..particleCount) {
                             particles.add(
@@ -784,7 +850,7 @@ fun TimoteoGameView(
                                     color = pColor,
                                     life = 1f,
                                     maxLife = 1f,
-                                    type = if (crate.type == CrateType.TNT) ParticleType.EXPLOSION_FIRE else ParticleType.WOOD_CHIP
+                                    type = if (crate.type == CrateType.BOMB) ParticleType.EXPLOSION_FIRE else ParticleType.WOOD_CHIP
                                 )
                             )
                         }
@@ -894,7 +960,14 @@ fun TimoteoGameView(
 
                 // Draw Falling Crates
                 crates.forEach { crate ->
-                    drawCrate(crate, woodenCrateBitmap)
+                    val bmp = when (crate.type) {
+                        CrateType.WOOD -> woodenCrateBitmap
+                        CrateType.BOMB -> redCrateBitmap
+                        CrateType.EXP -> greenCrateBitmap
+                        CrateType.GOLD -> yellowCrateBitmap
+                        CrateType.STEEL -> blueCrateBitmap
+                    }
+                    drawCrate(crate, bmp)
                 }
 
                 // Draw Bullets
@@ -999,6 +1072,30 @@ fun TimoteoGameView(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                            if (gold > 0) {
+                                Text(
+                                    text = "$gold ORO",
+                                    color = Color(0xFFFFD700),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            if (exp > 0) {
+                                Text(
+                                    text = "$exp EXP",
+                                    color = NeonGreen,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            if (comboCount > 0) {
+                                Text(
+                                    text = "COMBO x$comboCount",
+                                    color = NeonCyan,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(3.dp))
@@ -1595,7 +1692,7 @@ private fun DrawScope.drawTimoteo(
 }
 
 // Draw Falling Wood / Colored Crate
-private fun DrawScope.drawCrate(crate: Crate, woodenCrateBitmap: ImageBitmap?) {
+private fun DrawScope.drawCrate(crate: Crate, crateBitmap: ImageBitmap?) {
     val cx = crate.x + crate.width / 2
     val cy = crate.y + crate.height / 2
     val x = crate.x
@@ -1604,9 +1701,9 @@ private fun DrawScope.drawCrate(crate: Crate, woodenCrateBitmap: ImageBitmap?) {
     val h = crate.height
 
     rotate(degrees = crate.rotationAngle, pivot = Offset(cx, cy)) {
-        if (crate.type == CrateType.WOOD && woodenCrateBitmap != null) {
+        if (crateBitmap != null) {
             drawImage(
-                image = woodenCrateBitmap,
+                image = crateBitmap,
                 dstOffset = IntOffset(x.toInt(), y.toInt()),
                 dstSize = IntSize(w.toInt(), h.toInt())
             )

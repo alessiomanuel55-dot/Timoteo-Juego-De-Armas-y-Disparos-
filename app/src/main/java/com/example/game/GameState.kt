@@ -23,7 +23,7 @@ enum class CrateType(
         label = "MADERA"
     ),
     STEEL(
-        baseHp = 3,
+        baseHp = 2,
         points = 3,
         color = Color(0xFF607D8B),
         borderColors = Pair(Color(0xFF37474F), Color(0xFF90A4AE)),
@@ -31,17 +31,24 @@ enum class CrateType(
     ),
     GOLD(
         baseHp = 1,
-        points = 5,
+        points = 0,
         color = Color(0xFFFFD700),
         borderColors = Pair(Color(0xFFB8860B), Color(0xFFFFF59D)),
         label = "ORO"
     ),
-    TNT(
+    EXP(
         baseHp = 1,
-        points = 2,
+        points = 10,
+        color = NeonGreen,
+        borderColors = Pair(Color(0xFF2E7D32), Color(0xFFA5D6A7)),
+        label = "EXP"
+    ),
+    BOMB(
+        baseHp = 1,
+        points = 0,
         color = Color(0xFFD32F2F),
         borderColors = Pair(Color(0xFF8B0000), Color(0xFFFF8A80)),
-        label = "TNT"
+        label = "PELIGRO"
     )
 }
 
